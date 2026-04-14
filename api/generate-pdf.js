@@ -49,49 +49,45 @@ export async function buildBookPdf(order) {
 
   // ── COVER PAGE ──────────────────────────────────────────────
   doc.addPage();
-  doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill('#1a0a2e');
+  doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
   const coverImg = storyPages?.[0]?.imageUrl;
   if (coverImg) {
     const buf = await fetchImage(coverImg);
-    if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE * 0.62, cover: [PAGE_SIZE, PAGE_SIZE * 0.62] });
+    if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
   }
 
-  // Bottom panel — solid dark purple
-  doc.rect(0, PAGE_SIZE * 0.60, PAGE_SIZE, PAGE_SIZE * 0.40).fill('#1a0a2e');
+  // Dark overlay at bottom
+  doc.save();
+  doc.fillOpacity(0.68);
+  doc.rect(0, PAGE_SIZE * 0.52, PAGE_SIZE, PAGE_SIZE * 0.48).fill('#000000');
+  doc.restore();
 
-  // Golden top border on bottom panel
-  doc.rect(0, PAGE_SIZE * 0.60, PAGE_SIZE, 4).fill(GOLDEN);
-
-  // Decorative stars
-  [[60,PAGE_SIZE*0.67,2],[PAGE_SIZE-55,PAGE_SIZE*0.69,1.5],[PAGE_SIZE/2-100,PAGE_SIZE*0.91,1.5],[PAGE_SIZE/2+110,PAGE_SIZE*0.88,2],[40,PAGE_SIZE*0.85,1]].forEach(([x,y,r]) => {
-    doc.circle(x, y, r).fill('#FFD980');
-  });
-
-  // Title box
-  const titleY = PAGE_SIZE * 0.63;
+  // Title
   const title = story.title || `L'histoire de ${childName}`;
   doc.font('Nunito-Bold').fontSize(30).fillColor('#FFD980')
-    .text(title, MARGIN, titleY, {
+    .text(title, MARGIN, PAGE_SIZE * 0.55, {
       width: PAGE_SIZE - MARGIN * 2,
       align: 'center',
-      lineGap: 6,
+      lineGap: 5,
     });
 
-  // Golden separator line
-  doc.rect(PAGE_SIZE / 2 - 60, PAGE_SIZE * 0.77, 120, 2).fill(GOLDEN);
+  // Separator
+  doc.rect(PAGE_SIZE / 2 - 50, PAGE_SIZE * 0.72, 100, 2).fill(GOLDEN);
 
   // Subtitle
   doc.font('Nunito').fontSize(14).fillColor('#FFFFFF')
-    .text(`Un livre créé rien que pour ${childName}`, MARGIN, PAGE_SIZE * 0.79, {
+    .text(`Un livre créé rien que pour ${childName}`, MARGIN, PAGE_SIZE * 0.75, {
       width: PAGE_SIZE - MARGIN * 2,
       align: 'center',
     });
 
-  // Lorinizi badge at bottom
-  doc.roundedRect(PAGE_SIZE/2 - 50, PAGE_SIZE * 0.90, 100, 22, 11).fill(GOLDEN);
-  doc.font('Nunito-Bold').fontSize(9).fillColor('#1a0a2e')
-    .text('LORINIZI', PAGE_SIZE/2 - 50, PAGE_SIZE * 0.90 + 7, { width: 100, align: 'center' });
+  // Lorinizi branding bottom
+  doc.font('Nunito').fontSize(9).fillColor('#AAAAAA')
+    .text('Lorinizi — Des livres uniques pour des enfants uniques', MARGIN, PAGE_SIZE - 20, {
+      width: PAGE_SIZE - MARGIN * 2,
+      align: 'center',
+    });
 
   // ── STORY PAGES (2 PDF pages per story page: illustration + text) ──
   // PDF page counter: cover = page 1, then 2 per story page
@@ -117,37 +113,31 @@ export async function buildBookPdf(order) {
 
     pdfPageNum++; // text page
 
-    // ─── Page B: Full-page text, dark theme ───
+    // ─── Page B: Clean cream text page ───
     doc.addPage();
-    doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill('#1a0a2e');
+    doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-    // Subtle star dots background
-    [[30,40,1],[PAGE_SIZE-30,60,1.5],[20,PAGE_SIZE-40,1],[PAGE_SIZE-25,PAGE_SIZE-50,1.5],[PAGE_SIZE/2+130,30,1],[PAGE_SIZE/2-140,PAGE_SIZE-35,1]].forEach(([x,y,r]) => {
-      doc.save(); doc.fillOpacity(0.5); doc.circle(x,y,r).fill('#FFD980'); doc.restore();
+    // Top + bottom golden borders
+    doc.rect(0, 0, PAGE_SIZE, 6).fill(GOLDEN);
+    doc.rect(0, PAGE_SIZE - 6, PAGE_SIZE, 6).fill(GOLDEN);
+
+    // Dot decorations top center
+    [-60, -30, 0, 30, 60].forEach((offset, i) => {
+      doc.circle(PAGE_SIZE / 2 + offset, 22, i === 2 ? 5 : 3).fill(GOLDEN);
     });
 
-    // White rounded text area — full page with small margin
-    const padOuter = 18;
-    doc.roundedRect(padOuter, padOuter, PAGE_SIZE - padOuter*2, PAGE_SIZE - padOuter*2, 28).fill('#FFFFFF');
+    // Thin line under dots
+    doc.rect(MARGIN, 33, PAGE_SIZE - MARGIN * 2, 1.5).fill(GOLDEN);
 
-    // Golden top strip
-    doc.roundedRect(padOuter, padOuter, PAGE_SIZE - padOuter*2, 7, 4).fill(GOLDEN);
-    // Golden bottom strip
-    doc.roundedRect(padOuter, PAGE_SIZE - padOuter - 7, PAGE_SIZE - padOuter*2, 7, 4).fill(GOLDEN);
-
-    // Text inside white area
-    const padX = 42;
-    const textTop = padOuter + 22;
+    // Text — manually truncated to prevent overflow
+    const padX = 44;
+    const textTop = 48;
     const textW = PAGE_SIZE - padX * 2;
-    const textAvailH = PAGE_SIZE - padOuter*2 - 22 - 30;
-
-    // Truncate manually to prevent overflow
+    const textAvailH = PAGE_SIZE - textTop - 44;
     const fontSize = 21;
     const lineGap = 18;
-    const lineH = fontSize + lineGap;
-    const maxLines = Math.floor(textAvailH / lineH);
-    const charsPerLine = Math.floor(textW / (fontSize * 0.5));
-    const maxChars = maxLines * charsPerLine;
+    const maxLines = Math.floor(textAvailH / (fontSize + lineGap));
+    const maxChars = maxLines * Math.floor(textW / (fontSize * 0.5));
     const safeText = page.text && page.text.length > maxChars
       ? page.text.slice(0, maxChars - 1).trimEnd() + '…'
       : (page.text || '');
@@ -159,13 +149,12 @@ export async function buildBookPdf(order) {
         lineGap,
       });
 
-    // Page number pill centered at bottom
-    const pillW = 44;
-    const pillX = PAGE_SIZE/2 - pillW/2;
-    const pillY = PAGE_SIZE - padOuter - 20;
-    doc.roundedRect(pillX, pillY, pillW, 18, 9).fill(GOLDEN);
-    doc.font('Nunito-Bold').fontSize(10).fillColor('#FFFFFF')
-      .text(String(pdfPageNum), pillX, pillY + 4, { width: pillW, align: 'center' });
+    // Page number bottom center
+    doc.font('Nunito-Bold').fontSize(12).fillColor(GOLDEN)
+      .text(`- ${pdfPageNum} -`, 0, PAGE_SIZE - 26, {
+        width: PAGE_SIZE,
+        align: 'center',
+      });
   }
 
   // ── END PAGE ─────────────────────────────────────────────────
