@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const orderId = order.id;
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const siteUrl = process.env.SITE_URL || 'https://lorinizi.com';
+    const siteUrl = process.env.SITE_URL || 'https://lorinzi-site.vercel.app';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
