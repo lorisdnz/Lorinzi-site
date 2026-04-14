@@ -12,9 +12,15 @@ const MARGIN = 40;
 const GOLDEN = '#C98C10';
 const CREAM = '#FFFDF7';
 const DARK = '#2D1B00';
-const CARD_BG = '#FEF6E0';
 
 const MAX_STORY_PAGES = { court: 14, classique: 20, long: 25 };
+
+// Aggressively truncate text to fit within maxChars
+function truncateText(text, maxChars) {
+  if (!text) return '';
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars - 1).trimEnd() + '…';
+}
 
 export async function buildBookPdf(order) {
   const story = order.story;
@@ -22,13 +28,15 @@ export async function buildBookPdf(order) {
   const bookFormat = order.form_data?.bookFormat || 'classique';
   const maxPages = MAX_STORY_PAGES[bookFormat] || 20;
 
-  // Limit pages to expected count (prevents GPT from generating too many)
+  // HARD LIMIT — always slice here too as safety net
   const storyPages = (story.pages || []).slice(0, maxPages);
+  console.log(`[pdf] Building PDF: format=${bookFormat}, pages=${storyPages.length}/${maxPages}`);
 
   const doc = new PDFDocument({
     size: [PAGE_SIZE, PAGE_SIZE],
     autoFirstPage: false,
     margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    bufferPages: true, // prevent auto page-add on overflow
   });
 
   const buffers = [];
@@ -63,13 +71,16 @@ export async function buildBookPdf(order) {
   doc.rect(0, PAGE_SIZE * 0.52, PAGE_SIZE, PAGE_SIZE * 0.48).fill('#000000');
   doc.restore();
 
-  // Title
+  // Title — with height limit to prevent overflow
   const title = story.title || `L'histoire de ${childName}`;
+  const safeTitle = truncateText(title, 80);
   doc.font('Nunito-Bold').fontSize(30).fillColor('#FFD980')
-    .text(title, MARGIN, PAGE_SIZE * 0.55, {
+    .text(safeTitle, MARGIN, PAGE_SIZE * 0.55, {
       width: PAGE_SIZE - MARGIN * 2,
+      height: 100,
       align: 'center',
       lineGap: 5,
+      ellipsis: true,
     });
 
   // Separator
@@ -79,24 +90,38 @@ export async function buildBookPdf(order) {
   doc.font('Nunito').fontSize(14).fillColor('#FFFFFF')
     .text(`Un livre créé rien que pour ${childName}`, MARGIN, PAGE_SIZE * 0.75, {
       width: PAGE_SIZE - MARGIN * 2,
+      height: 30,
       align: 'center',
+      ellipsis: true,
     });
 
-  // Lorinizi branding bottom
+  // Lorinizi branding
   doc.font('Nunito').fontSize(9).fillColor('#AAAAAA')
-    .text('Lorinizi — Des livres uniques pour des enfants uniques', MARGIN, PAGE_SIZE - 20, {
+    .text('Lorinizi — Des livres uniques pour des enfants uniques', MARGIN, PAGE_SIZE - 22, {
       width: PAGE_SIZE - MARGIN * 2,
+      height: 18,
       align: 'center',
+      ellipsis: true,
     });
 
-  // ── STORY PAGES (2 PDF pages per story page: illustration + text) ──
-  // PDF page counter: cover = page 1, then 2 per story page
+  // ── STORY PAGES ──────────────────────────────────────────────
   let pdfPageNum = 1;
 
-  for (const page of storyPages) {
-    pdfPageNum++; // illustration page
+  // Text zone constants (computed once)
+  const PAD_X = 50;
+  const TEXT_TOP = 78;
+  const TEXT_W = PAGE_SIZE - PAD_X * 2;
+  const TEXT_AVAIL_H = PAGE_SIZE - TEXT_TOP - 62; // 427px
+  const FONT_SIZE = 26;
+  const LINE_GAP = 22;
+  // Conservative: ~34 chars per line, 8 lines max
+  const CHARS_PER_LINE = Math.floor(TEXT_W / (FONT_SIZE * 0.50));
+  const MAX_LINES = Math.floor(TEXT_AVAIL_H / (FONT_SIZE + LINE_GAP));
+  const MAX_CHARS = MAX_LINES * CHARS_PER_LINE;
 
+  for (const page of storyPages) {
     // ─── Page A: Full illustration ───
+    pdfPageNum++;
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
@@ -105,15 +130,12 @@ export async function buildBookPdf(order) {
       doc.image(imgBuf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
     } else {
       doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill('#FEF3C7');
-      doc.font('Nunito').fontSize(40).fillColor(GOLDEN)
-        .text('✨', 0, PAGE_SIZE / 2 - 30, { width: PAGE_SIZE, align: 'center' });
+      doc.font('Nunito-Bold').fontSize(40).fillColor(GOLDEN)
+        .text('*', 0, PAGE_SIZE / 2 - 30, { width: PAGE_SIZE, height: 60, align: 'center' });
     }
 
-    // No page number on illustration pages — cleaner look
-
-    pdfPageNum++; // text page
-
     // ─── Page B: Premium cream text page ───
+    pdfPageNum++;
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
@@ -121,53 +143,44 @@ export async function buildBookPdf(order) {
     doc.rect(0, 0, PAGE_SIZE, 12).fill(GOLDEN);
     doc.rect(0, PAGE_SIZE - 12, PAGE_SIZE, 12).fill(GOLDEN);
 
-    // Inner golden frame lines (elegant border effect)
+    // Inner golden frame
     doc.rect(22, 22, PAGE_SIZE - 44, 1.5).fill(GOLDEN);
     doc.rect(22, PAGE_SIZE - 23.5, PAGE_SIZE - 44, 1.5).fill(GOLDEN);
     doc.rect(22, 22, 1.5, PAGE_SIZE - 44).fill(GOLDEN);
     doc.rect(PAGE_SIZE - 23.5, 22, 1.5, PAGE_SIZE - 44).fill(GOLDEN);
 
-    // Corner dots at frame intersections
+    // Corner dots
     [22, PAGE_SIZE - 22].forEach(cx => {
       [22, PAGE_SIZE - 22].forEach(cy => {
         doc.circle(cx, cy, 4).fill(GOLDEN);
       });
     });
 
-    // Decorative dots row top center
+    // Decorative dots top center
     [-50, -25, 0, 25, 50].forEach((offset, i) => {
       doc.circle(PAGE_SIZE / 2 + offset, 44, i === 2 ? 6 : 3.5).fill(GOLDEN);
     });
 
-    // Separator line under dots
+    // Separator line
     doc.rect(60, 57, PAGE_SIZE - 120, 2).fill(GOLDEN);
 
-    // Text — manually truncated to prevent overflow
-    const padX = 50;
-    const textTop = 78;
-    const textW = PAGE_SIZE - padX * 2;
-    const textAvailH = PAGE_SIZE - textTop - 62;
-    const fontSize = 26;
-    const lineGap = 22;
-    const maxLines = Math.floor(textAvailH / (fontSize + lineGap));
-    const maxChars = maxLines * Math.floor(textW / (fontSize * 0.52));
-    const safeText = page.text && page.text.length > maxChars
-      ? page.text.slice(0, maxChars - 1).trimEnd() + '…'
-      : (page.text || '');
+    // Story text — aggressively truncated + height limited
+    const safeText = truncateText(page.text, MAX_CHARS);
 
-    doc.font('Nunito').fontSize(fontSize).fillColor(DARK)
-      .text(safeText, padX, textTop, {
-        width: textW,
-        height: textAvailH,
+    doc.font('Nunito').fontSize(FONT_SIZE).fillColor(DARK)
+      .text(safeText, PAD_X, TEXT_TOP, {
+        width: TEXT_W,
+        height: TEXT_AVAIL_H,
         align: 'left',
-        lineGap,
+        lineGap: LINE_GAP,
         ellipsis: true,
       });
 
-    // Page number bottom center — elegant style
+    // Page number — fixed position, no overflow possible
     doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
       .text(`— ${pdfPageNum} —`, 0, PAGE_SIZE - 34, {
         width: PAGE_SIZE,
+        height: 20,
         align: 'center',
       });
   }
@@ -178,7 +191,7 @@ export async function buildBookPdf(order) {
   doc.rect(0, 0, PAGE_SIZE, 8).fill(GOLDEN);
   doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
 
-  // Decorative circle ring around "Fin"
+  // Decorative circle ring
   const cx = PAGE_SIZE / 2;
   const cy = PAGE_SIZE * 0.28;
   for (let i = 0; i < 10; i++) {
@@ -190,14 +203,14 @@ export async function buildBookPdf(order) {
   }
 
   doc.font('Nunito-Bold').fontSize(72).fillColor(GOLDEN)
-    .text('Fin', 0, PAGE_SIZE * 0.2, { width: PAGE_SIZE, align: 'center' });
+    .text('Fin', 0, PAGE_SIZE * 0.2, { width: PAGE_SIZE, height: 100, align: 'center' });
 
   doc.font('Nunito').fontSize(21).fillColor(DARK)
-    .text(`Bravo ${childName} ! 🎉`, 0, PAGE_SIZE * 0.5, { width: PAGE_SIZE, align: 'center' });
+    .text(`Bravo ${childName} !`, 0, PAGE_SIZE * 0.5, { width: PAGE_SIZE, height: 40, align: 'center' });
 
   doc.font('Nunito').fontSize(14).fillColor('#A8700C')
-    .text('Ce livre a été créé rien que pour toi.', 0, PAGE_SIZE * 0.61, {
-      width: PAGE_SIZE, align: 'center',
+    .text('Ce livre a ete cree rien que pour toi.', 0, PAGE_SIZE * 0.61, {
+      width: PAGE_SIZE, height: 30, align: 'center',
     });
 
   // Row of decorative dots
@@ -206,12 +219,14 @@ export async function buildBookPdf(order) {
   }
 
   doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
-    .text('✨  Lorinizi  ✨', 0, PAGE_SIZE * 0.8, { width: PAGE_SIZE, align: 'center' });
+    .text('Lorinizi', 0, PAGE_SIZE * 0.8, { width: PAGE_SIZE, height: 25, align: 'center' });
 
   doc.end();
   await pdfEnd;
 
-  return Buffer.concat(buffers);
+  const finalBuffer = Buffer.concat(buffers);
+  console.log(`[pdf] Done — ${finalBuffer.length} bytes`);
+  return finalBuffer;
 }
 
 export default async function handler(req, res) {
@@ -240,7 +255,7 @@ export default async function handler(req, res) {
       .from('pdfs')
       .upload(filename, pdfBuffer, { contentType: 'application/pdf', upsert: true });
 
-    if (uploadErr) throw new Error('Upload PDF échoué : ' + uploadErr.message);
+    if (uploadErr) throw new Error('Upload PDF echoue : ' + uploadErr.message);
 
     const { data: { publicUrl } } = supabase.storage.from('pdfs').getPublicUrl(filename);
 

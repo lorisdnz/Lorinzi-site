@@ -128,26 +128,29 @@ export default async function handler(req, res) {
       .eq('id', orderId);
 
     // 2. Fetch full order
-    const { data: orderRow } = await supabase
+    const { data: rawOrder } = await supabase
       .from('orders')
       .select('*')
       .eq('id', orderId)
       .single();
 
-    if (!orderRow) return res.status(200).json({ received: true });
+    if (!rawOrder) return res.status(200).json({ received: true });
 
-    // 3. Generate PDF — hard-limit story pages before building
+    // 3. Hard-limit story pages BEFORE building PDF (FIX: use let, not const)
     const FORMAT_MAX_PAGES = { court: 14, classique: 20, long: 25 };
-    const bookFormat = orderRow.form_data?.bookFormat || 'classique';
+    const bookFormat = rawOrder.form_data?.bookFormat || 'classique';
     const maxStoryPages = FORMAT_MAX_PAGES[bookFormat] || 20;
-    const storyPageCount = orderRow.story?.pages?.length || 0;
+    const storyPageCount = rawOrder.story?.pages?.length || 0;
     console.log('[webhook] Story pages:', storyPageCount, '→ limiting to', maxStoryPages);
-    if (storyPageCount > maxStoryPages) {
-      orderRow = {
-        ...orderRow,
-        story: { ...orderRow.story, pages: orderRow.story.pages.slice(0, maxStoryPages) }
-      };
-    }
+
+    const orderRow = {
+      ...rawOrder,
+      story: {
+        ...rawOrder.story,
+        pages: (rawOrder.story?.pages || []).slice(0, maxStoryPages),
+      },
+    };
+    console.log('[webhook] Final page count:', orderRow.story.pages.length);
     console.log('[webhook] Generating PDF for order:', orderId);
     await supabase.from('orders').update({ status: 'generating_pdf' }).eq('id', orderId);
     const pdfBuffer = await buildBookPdf(orderRow);
