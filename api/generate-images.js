@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { story, age } = req.body;
+    const { story, age, gender, childDescription } = req.body;
 
     if (!story?.pages?.length) {
       return res.status(400).json({ error: 'Données histoire manquantes' });
@@ -18,10 +18,18 @@ export default async function handler(req, res) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+    // Build consistent character + style prefix for ALL images
+    const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
+    const characterBase = `a ${age || 5}-year-old ${genderStr}${childDescription ? ` with ${childDescription}` : ''}`;
+    const stylePrefix =
+      `Soft watercolor children's book illustration, warm pastel colors, gentle rounded shapes, ` +
+      `consistent art style like a classic picture book (similar to Eric Carle or Quentin Blake style). ` +
+      `Main character: ${characterBase}, cute friendly face, same character design in every scene. `;
+
     // Generate all images in parallel
     const results = await Promise.all(
       story.pages.map(async (page) => {
-        const prompt = `${page.imagePrompt}. Style: children's book illustration, warm colors, friendly characters, soft digital painting, age-appropriate for a ${age || 5}-year-old. No text in the image.`;
+        const prompt = `${stylePrefix}Scene: ${page.imagePrompt}. No text, no letters, no words in the image.`;
         try {
           const image = await openai.images.generate({
             model: 'dall-e-3',
@@ -33,7 +41,7 @@ export default async function handler(req, res) {
 
           const tempUrl = image.data[0].url;
 
-          // Download image from DALL-E (temporary URL, expires after 1h)
+          // Download image from DALL-E (temporary URL)
           const imgRes = await fetch(tempUrl);
           const imgBuffer = await imgRes.arrayBuffer();
 

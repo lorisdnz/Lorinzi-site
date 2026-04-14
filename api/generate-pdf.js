@@ -12,10 +12,18 @@ const MARGIN = 40;
 const GOLDEN = '#C98C10';
 const CREAM = '#FFFDF7';
 const DARK = '#2D1B00';
+const CARD_BG = '#FEF6E0';
+
+const MAX_STORY_PAGES = { court: 14, classique: 20, long: 25 };
 
 export async function buildBookPdf(order) {
   const story = order.story;
   const childName = order.child_first_name;
+  const bookFormat = order.form_data?.bookFormat || 'classique';
+  const maxPages = MAX_STORY_PAGES[bookFormat] || 20;
+
+  // Limit pages to expected count (prevents GPT from generating too many)
+  const storyPages = (story.pages || []).slice(0, maxPages);
 
   const doc = new PDFDocument({
     size: [PAGE_SIZE, PAGE_SIZE],
@@ -27,7 +35,6 @@ export async function buildBookPdf(order) {
   doc.on('data', (chunk) => buffers.push(chunk));
   const pdfEnd = new Promise((resolve) => doc.on('end', resolve));
 
-  // Register fonts
   doc.registerFont('Nunito', FONT_REGULAR);
   doc.registerFont('Nunito-Bold', FONT_BOLD);
 
@@ -42,26 +49,23 @@ export async function buildBookPdf(order) {
 
   // ── COVER PAGE ──────────────────────────────────────────────
   doc.addPage();
-
-  // Background gradient effect
   doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-  // Cover illustration (full page)
-  const coverImg = story.pages?.[0]?.imageUrl;
+  const coverImg = storyPages?.[0]?.imageUrl;
   if (coverImg) {
     const buf = await fetchImage(coverImg);
     if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
   }
 
-  // Golden overlay band at bottom
+  // Dark overlay at bottom for title readability
   doc.save();
-  doc.fillOpacity(0.55);
-  doc.rect(0, PAGE_SIZE * 0.65, PAGE_SIZE, PAGE_SIZE * 0.35).fill('#000000');
+  doc.fillOpacity(0.62);
+  doc.rect(0, PAGE_SIZE * 0.54, PAGE_SIZE, PAGE_SIZE * 0.46).fill('#000000');
   doc.restore();
 
   // Title
-  doc.font('Nunito-Bold').fontSize(26).fillColor('white')
-    .text(story.title || `L'histoire de ${childName}`, MARGIN, PAGE_SIZE * 0.67, {
+  doc.font('Nunito-Bold').fontSize(27).fillColor('white')
+    .text(story.title || `L'histoire de ${childName}`, MARGIN, PAGE_SIZE * 0.57, {
       width: PAGE_SIZE - MARGIN * 2,
       align: 'center',
       lineGap: 4,
@@ -69,22 +73,22 @@ export async function buildBookPdf(order) {
 
   // Subtitle
   doc.font('Nunito').fontSize(13).fillColor('#FFD980')
-    .text(`Un livre créé rien que pour ${childName} ✨`, MARGIN, PAGE_SIZE * 0.82, {
+    .text(`Un livre créé rien que pour ${childName} ✨`, MARGIN, PAGE_SIZE * 0.76, {
       width: PAGE_SIZE - MARGIN * 2,
       align: 'center',
     });
 
-  // Lorinizi branding
-  doc.font('Nunito').fontSize(9).fillColor('#AAAAAA')
+  // Branding
+  doc.font('Nunito').fontSize(9).fillColor('#BBBBBB')
     .text('Lorinizi — Des livres uniques pour des enfants uniques', MARGIN, PAGE_SIZE - 22, {
       width: PAGE_SIZE - MARGIN * 2,
       align: 'center',
     });
 
   // ── STORY PAGES (2 pages per story page: illustration + text) ──
-  for (const page of story.pages) {
+  for (const page of storyPages) {
 
-    // --- Page A: Full illustration ---
+    // ─── Page A: Full illustration ───
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
@@ -92,65 +96,108 @@ export async function buildBookPdf(order) {
     if (imgBuf) {
       doc.image(imgBuf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
     } else {
-      // Decorative placeholder
       doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill('#FEF3C7');
       doc.font('Nunito').fontSize(40).fillColor(GOLDEN)
         .text('✨', 0, PAGE_SIZE / 2 - 30, { width: PAGE_SIZE, align: 'center' });
     }
 
-    // Page number badge
-    doc.circle(PAGE_SIZE - 24, PAGE_SIZE - 24, 14).fill(GOLDEN);
-    doc.font('Nunito-Bold').fontSize(9).fillColor('white')
-      .text(String(page.pageNumber), PAGE_SIZE - 38, PAGE_SIZE - 29, { width: 28, align: 'center' });
+    // Page number badge (bottom right)
+    doc.circle(PAGE_SIZE - 28, PAGE_SIZE - 28, 16).fill(GOLDEN);
+    doc.font('Nunito-Bold').fontSize(10).fillColor('white')
+      .text(String(page.pageNumber), PAGE_SIZE - 44, PAGE_SIZE - 34, { width: 32, align: 'center' });
 
-    // --- Page B: Text page ---
+    // ─── Page B: Beautiful text page ───
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-    // Decorative top strip
-    doc.rect(0, 0, PAGE_SIZE, 6).fill(GOLDEN);
+    // Top golden border
+    doc.rect(0, 0, PAGE_SIZE, 8).fill(GOLDEN);
 
-    // Small golden dots decoration
-    for (let i = 0; i < 5; i++) {
-      doc.circle(MARGIN + i * 18, 28, 3).fill(GOLDEN);
-    }
+    // Decorative dots row with page number in center
+    const dotsY = 28;
+    const dotPositions = [-44, -22, 0, 22, 44];
+    dotPositions.forEach((offset, i) => {
+      const x = PAGE_SIZE / 2 + offset;
+      if (i === 2) {
+        // Center: large circle with page number
+        doc.circle(x, dotsY, 13).fill(GOLDEN);
+        doc.font('Nunito-Bold').fontSize(9).fillColor('white')
+          .text(String(page.pageNumber), x - 13, dotsY - 5, { width: 26, align: 'center' });
+      } else {
+        doc.circle(x, dotsY, i === 1 || i === 3 ? 4 : 3).fill(GOLDEN);
+      }
+    });
+
+    // Text card background
+    const cardX = 26;
+    const cardY = 52;
+    const cardW = PAGE_SIZE - 52;
+    const cardH = PAGE_SIZE - cardY - 46;
+
+    doc.roundedRect(cardX, cardY, cardW, cardH, 20).fill(CARD_BG);
+
+    // Card border
+    doc.save();
+    doc.lineWidth(1.8);
+    doc.roundedRect(cardX, cardY, cardW, cardH, 20).stroke(GOLDEN);
+    doc.restore();
+
+    // Decorative large quote mark (very subtle)
+    doc.save();
+    doc.fillOpacity(0.1);
+    doc.font('Nunito-Bold').fontSize(80).fillColor(GOLDEN)
+      .text('\u201C', cardX + 8, cardY - 2, { lineBreak: false });
+    doc.restore();
 
     // Story text
-    const textY = 50;
-    const textH = PAGE_SIZE - textY - 60;
-    doc.font('Nunito').fontSize(15).fillColor(DARK)
-      .text(page.text, MARGIN, textY, {
-        width: PAGE_SIZE - MARGIN * 2,
-        height: textH,
-        align: 'justify',
-        lineGap: 6,
+    const textPad = 28;
+    doc.font('Nunito').fontSize(16).fillColor(DARK)
+      .text(page.text, cardX + textPad, cardY + textPad, {
+        width: cardW - textPad * 2,
+        height: cardH - textPad * 2,
+        align: 'left',
+        lineGap: 9,
       });
 
-    // Bottom decoration
-    doc.rect(0, PAGE_SIZE - 6, PAGE_SIZE, 6).fill(GOLDEN);
-
-    // Page number
-    doc.font('Nunito').fontSize(9).fillColor(GOLDEN)
-      .text(`— ${page.pageNumber} —`, 0, PAGE_SIZE - 28, { width: PAGE_SIZE, align: 'center' });
+    // Bottom golden border
+    doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
   }
 
   // ── END PAGE ─────────────────────────────────────────────────
   doc.addPage();
   doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
-  doc.rect(0, 0, PAGE_SIZE, 6).fill(GOLDEN);
-  doc.rect(0, PAGE_SIZE - 6, PAGE_SIZE, 6).fill(GOLDEN);
+  doc.rect(0, 0, PAGE_SIZE, 8).fill(GOLDEN);
+  doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
 
-  doc.font('Nunito-Bold').fontSize(60).fillColor(GOLDEN)
-    .text('Fin', 0, PAGE_SIZE * 0.25, { width: PAGE_SIZE, align: 'center' });
+  // Decorative circle ring around "Fin"
+  const cx = PAGE_SIZE / 2;
+  const cy = PAGE_SIZE * 0.28;
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const r = 80;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    doc.circle(x, y, i % 2 === 0 ? 4 : 2.5).fill(GOLDEN);
+  }
 
-  doc.font('Nunito').fontSize(18).fillColor(DARK)
-    .text(`Bravo ${childName} ! 🎉`, 0, PAGE_SIZE * 0.48, { width: PAGE_SIZE, align: 'center' });
+  doc.font('Nunito-Bold').fontSize(72).fillColor(GOLDEN)
+    .text('Fin', 0, PAGE_SIZE * 0.2, { width: PAGE_SIZE, align: 'center' });
 
-  doc.font('Nunito').fontSize(13).fillColor('#A8700C')
-    .text('Ce livre a été créé rien que pour toi.', 0, PAGE_SIZE * 0.58, { width: PAGE_SIZE, align: 'center' });
+  doc.font('Nunito').fontSize(21).fillColor(DARK)
+    .text(`Bravo ${childName} ! 🎉`, 0, PAGE_SIZE * 0.5, { width: PAGE_SIZE, align: 'center' });
 
-  doc.font('Nunito').fontSize(10).fillColor(GOLDEN)
-    .text('✨ Lorinizi ✨', 0, PAGE_SIZE * 0.78, { width: PAGE_SIZE, align: 'center' });
+  doc.font('Nunito').fontSize(14).fillColor('#A8700C')
+    .text('Ce livre a été créé rien que pour toi.', 0, PAGE_SIZE * 0.61, {
+      width: PAGE_SIZE, align: 'center',
+    });
+
+  // Row of decorative dots
+  for (let i = 0; i < 7; i++) {
+    doc.circle(PAGE_SIZE / 2 - 60 + i * 20, PAGE_SIZE * 0.73, i === 3 ? 5 : 3).fill(GOLDEN);
+  }
+
+  doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
+    .text('✨  Lorinizi  ✨', 0, PAGE_SIZE * 0.8, { width: PAGE_SIZE, align: 'center' });
 
   doc.end();
   await pdfEnd;

@@ -815,7 +815,12 @@
         msg.textContent = '🎨 Génération des illustrations...';
         bar.style.width = '50%';
         const imgRes = await fetch(API_BASE + '/api/generate-images', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ story, age: data.age })
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            story,
+            age: data.age,
+            gender: data.gender,
+            childDescription: [data.skinColor, data.eyeColor, data.hairColor].filter(Boolean).join(', ')
+          })
         });
         if (!imgRes.ok) throw new Error('Erreur génération images');
         const storyWithImages = await imgRes.json();
