@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { buildBookPdf } from './generate-pdf.js';
+import { waitUntil } from '@vercel/functions';
 
 export const config = { api: { bodyParser: false } };
 
@@ -135,8 +136,8 @@ export default async function handler(req, res) {
     // Respond to Stripe immediately (30s timeout)
     res.status(200).json({ received: true });
 
-    // Process asynchronously (PDF + Gelato + email)
-    (async () => {
+    // Process asynchronously with waitUntil (keeps Vercel function alive)
+    waitUntil((async () => {
       try {
         // 1. Generate PDF
         await supabase.from('orders').update({ status: 'generating_pdf' }).eq('id', orderId);
@@ -194,7 +195,7 @@ export default async function handler(req, res) {
           .update({ status: 'error', error_message: err.message })
           .eq('id', orderId);
       }
-    })();
+    })());
 
     return;
   }
