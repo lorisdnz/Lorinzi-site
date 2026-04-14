@@ -26,7 +26,13 @@ ${data.hasPet && data.petName ? `- Animal de compagnie : ${data.petName} (${data
 ${data.importantPeople ? `- Personnages à inclure : ${data.importantPeople}${personAppearance ? ` (apparence : ${personAppearance})` : ''}` : ''}
 - Lieu de l'histoire : ${data.storySetting}
 
-IMPORTANT POUR LES ILLUSTRATIONS : Dans chaque imagePrompt, décris toujours le personnage principal avec ces caractéristiques précises :${childAppearance ? ` ${childAppearance}` : ''} pour que les illustrations soient cohérentes d'une page à l'autre.
+COHÉRENCE VISUELLE — RÈGLE ABSOLUE :
+Dès la première page, définis UNE SEULE fois la tenue du personnage principal (ex: "red striped shirt, blue jeans, white sneakers") et répète-la IDENTIQUEMENT dans chaque imagePrompt. Ne change JAMAIS la tenue, le visage, ni le style artistique.${childAppearance ? `\nApparence physique fixe : ${childAppearance}.` : ''}
+
+Dans CHAQUE imagePrompt tu dois inclure :
+1. La description physique complète du personnage (apparence + tenue choisie)
+2. Le style : "soft watercolor children's book illustration, warm pastel colors, rounded gentle shapes, same character design as previous pages"
+3. La scène de la page
 
 STYLE : Histoire de type ${styleMap[data.storyStyle] || 'magique'}.
 ${data.includeEducationalMessage && data.educationalTheme ? `MESSAGE ÉDUCATIF : Intègre subtilement : ${data.educationalTheme}.` : ''}
@@ -42,7 +48,7 @@ FORMAT :
     {
       "pageNumber": 1,
       "text": "Texte de la page...",
-      "imagePrompt": "Description en anglais de l'illustration. IMPORTANT: always use the same consistent art style: soft watercolor children's book illustration, warm pastel colors, same character design throughout"
+      "imagePrompt": "Soft watercolor children's book illustration. [Character: full physical description + exact outfit]. [Scene description]. Warm pastel colors, rounded gentle shapes, consistent style."
     }
   ]
 }`.trim();

@@ -113,51 +113,63 @@ export async function buildBookPdf(order) {
     // Top golden border
     doc.rect(0, 0, PAGE_SIZE, 8).fill(GOLDEN);
 
-    // Decorative dots row with page number in center
-    const dotsY = 28;
-    const dotPositions = [-44, -22, 0, 22, 44];
-    dotPositions.forEach((offset, i) => {
-      const x = PAGE_SIZE / 2 + offset;
-      if (i === 2) {
-        // Center: large circle with page number
-        doc.circle(x, dotsY, 13).fill(GOLDEN);
-        doc.font('Nunito-Bold').fontSize(9).fillColor('white')
-          .text(String(page.pageNumber), x - 13, dotsY - 5, { width: 26, align: 'center' });
-      } else {
-        doc.circle(x, dotsY, i === 1 || i === 3 ? 4 : 3).fill(GOLDEN);
-      }
-    });
+    // Text card (full height, small margins)
+    const cardX = 24;
+    const cardY = 20;
+    const cardW = PAGE_SIZE - 48;
+    const cardH = PAGE_SIZE - cardY - 20;
 
-    // Text card background
-    const cardX = 26;
-    const cardY = 52;
-    const cardW = PAGE_SIZE - 52;
-    const cardH = PAGE_SIZE - cardY - 46;
-
-    doc.roundedRect(cardX, cardY, cardW, cardH, 20).fill(CARD_BG);
+    // Card background
+    doc.roundedRect(cardX, cardY, cardW, cardH, 18).fill(CARD_BG);
 
     // Card border
     doc.save();
     doc.lineWidth(1.8);
-    doc.roundedRect(cardX, cardY, cardW, cardH, 20).stroke(GOLDEN);
+    doc.roundedRect(cardX, cardY, cardW, cardH, 18).stroke(GOLDEN);
     doc.restore();
 
-    // Decorative large quote mark (very subtle)
+    // Golden header strip inside card
+    const headerH = 44;
     doc.save();
-    doc.fillOpacity(0.1);
-    doc.font('Nunito-Bold').fontSize(80).fillColor(GOLDEN)
-      .text('\u201C', cardX + 8, cardY - 2, { lineBreak: false });
+    // Clip to card shape so header respects rounded corners
+    doc.roundedRect(cardX, cardY, cardW, headerH, 18).fill(GOLDEN);
+    // Bottom of header - flat edge
+    doc.rect(cardX, cardY + headerH - 10, cardW, 10).fill(GOLDEN);
+    doc.restore();
+
+    // Page number in header
+    doc.font('Nunito-Bold').fontSize(13).fillColor('white')
+      .text(`✦  Page ${page.pageNumber}  ✦`, cardX, cardY + 14, {
+        width: cardW,
+        align: 'center',
+      });
+
+    // Subtle quote mark behind text
+    doc.save();
+    doc.fillOpacity(0.07);
+    doc.font('Nunito-Bold').fontSize(100).fillColor(GOLDEN)
+      .text('\u201C', cardX + 8, cardY + 44, { lineBreak: false });
     doc.restore();
 
     // Story text
-    const textPad = 28;
-    doc.font('Nunito').fontSize(16).fillColor(DARK)
-      .text(page.text, cardX + textPad, cardY + textPad, {
-        width: cardW - textPad * 2,
-        height: cardH - textPad * 2,
+    const textPadX = 30;
+    const textPadY = 16;
+    const textY = cardY + headerH + textPadY;
+    const textH = cardH - headerH - textPadY * 2 - 50; // leave space for bottom deco
+    doc.font('Nunito').fontSize(17).fillColor(DARK)
+      .text(page.text, cardX + textPadX, textY, {
+        width: cardW - textPadX * 2,
+        height: textH,
         align: 'left',
-        lineGap: 9,
+        lineGap: 11,
       });
+
+    // Bottom decoration inside card — row of dots
+    const decoY = cardY + cardH - 34;
+    for (let i = 0; i < 7; i++) {
+      const dotX = cardX + cardW / 2 - 54 + i * 18;
+      doc.circle(dotX, decoY, i === 0 || i === 6 ? 2.5 : i === 3 ? 5 : 3.5).fill(GOLDEN);
+    }
 
     // Bottom golden border
     doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
