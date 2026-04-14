@@ -89,10 +89,10 @@ Be very specific. Max 50 words. English only.`
     const results = await Promise.all(
       story.pages.map(async (page) => {
         const prompt =
-          `2D cartoon children's book illustration, bold thick black outlines, bright saturated colors, exaggerated cute features, big round eyes, chunky rounded shapes, fun playful style like modern cartoon TV show or animated movie. ` +
-          `Main character (IDENTICAL in every single image — do not change face, hair, or outfit): ${characterDesc}. ` +
+          `Children's book illustration, clean bold black outlines, bright vivid colors, cute cartoon style, big expressive round eyes, chubby friendly proportions, smooth flat coloring with soft shading, cheerful warm atmosphere, consistent character design. ` +
+          `EXACT SAME CHARACTER in every image — same face, same hair color and style, same skin tone, same outfit from first to last page. Character: ${characterDesc}. ` +
           `Scene: ${page.imagePrompt}. ` +
-          `No text, no words, no letters anywhere in the image.`;
+          `No text, no letters, no words in the image. High quality illustration.`;
 
         try {
           const imageUrl = await generateWithLeonardo(leonardoKey, prompt);

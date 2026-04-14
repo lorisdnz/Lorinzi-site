@@ -113,31 +113,44 @@ export async function buildBookPdf(order) {
 
     pdfPageNum++; // text page
 
-    // ─── Page B: Clean cream text page ───
+    // ─── Page B: Premium cream text page ───
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-    // Top + bottom golden borders
-    doc.rect(0, 0, PAGE_SIZE, 6).fill(GOLDEN);
-    doc.rect(0, PAGE_SIZE - 6, PAGE_SIZE, 6).fill(GOLDEN);
+    // Thick golden top + bottom bars
+    doc.rect(0, 0, PAGE_SIZE, 12).fill(GOLDEN);
+    doc.rect(0, PAGE_SIZE - 12, PAGE_SIZE, 12).fill(GOLDEN);
 
-    // Dot decorations top center
-    [-60, -30, 0, 30, 60].forEach((offset, i) => {
-      doc.circle(PAGE_SIZE / 2 + offset, 22, i === 2 ? 5 : 3).fill(GOLDEN);
+    // Inner golden frame lines (elegant border effect)
+    doc.rect(22, 22, PAGE_SIZE - 44, 1.5).fill(GOLDEN);
+    doc.rect(22, PAGE_SIZE - 23.5, PAGE_SIZE - 44, 1.5).fill(GOLDEN);
+    doc.rect(22, 22, 1.5, PAGE_SIZE - 44).fill(GOLDEN);
+    doc.rect(PAGE_SIZE - 23.5, 22, 1.5, PAGE_SIZE - 44).fill(GOLDEN);
+
+    // Corner dots at frame intersections
+    [22, PAGE_SIZE - 22].forEach(cx => {
+      [22, PAGE_SIZE - 22].forEach(cy => {
+        doc.circle(cx, cy, 4).fill(GOLDEN);
+      });
     });
 
-    // Thin line under dots
-    doc.rect(MARGIN, 33, PAGE_SIZE - MARGIN * 2, 1.5).fill(GOLDEN);
+    // Decorative dots row top center
+    [-50, -25, 0, 25, 50].forEach((offset, i) => {
+      doc.circle(PAGE_SIZE / 2 + offset, 44, i === 2 ? 6 : 3.5).fill(GOLDEN);
+    });
+
+    // Separator line under dots
+    doc.rect(60, 57, PAGE_SIZE - 120, 2).fill(GOLDEN);
 
     // Text — manually truncated to prevent overflow
-    const padX = 44;
-    const textTop = 48;
+    const padX = 50;
+    const textTop = 78;
     const textW = PAGE_SIZE - padX * 2;
-    const textAvailH = PAGE_SIZE - textTop - 44;
-    const fontSize = 21;
-    const lineGap = 18;
+    const textAvailH = PAGE_SIZE - textTop - 62;
+    const fontSize = 26;
+    const lineGap = 22;
     const maxLines = Math.floor(textAvailH / (fontSize + lineGap));
-    const maxChars = maxLines * Math.floor(textW / (fontSize * 0.5));
+    const maxChars = maxLines * Math.floor(textW / (fontSize * 0.52));
     const safeText = page.text && page.text.length > maxChars
       ? page.text.slice(0, maxChars - 1).trimEnd() + '…'
       : (page.text || '');
@@ -151,9 +164,9 @@ export async function buildBookPdf(order) {
         ellipsis: true,
       });
 
-    // Page number bottom center
-    doc.font('Nunito-Bold').fontSize(12).fillColor(GOLDEN)
-      .text(`- ${pdfPageNum} -`, 0, PAGE_SIZE - 26, {
+    // Page number bottom center — elegant style
+    doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
+      .text(`— ${pdfPageNum} —`, 0, PAGE_SIZE - 34, {
         width: PAGE_SIZE,
         align: 'center',
       });

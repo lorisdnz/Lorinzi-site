@@ -27,12 +27,13 @@ ${data.importantPeople ? `- Personnages à inclure : ${data.importantPeople}${pe
 - Lieu de l'histoire : ${data.storySetting}
 
 COHÉRENCE VISUELLE — RÈGLE ABSOLUE :
-Dès la première page, définis UNE SEULE fois la tenue du personnage principal (ex: "red striped shirt, blue jeans, white sneakers") et répète-la IDENTIQUEMENT dans chaque imagePrompt. Ne change JAMAIS la tenue, le visage, ni le style artistique.${childAppearance ? `\nApparence physique fixe : ${childAppearance}.` : ''}
+Choisis UNE SEULE tenue pour le personnage principal sur la page 1 et ne la change JAMAIS jusqu'à la dernière page. Même chemise, même pantalon/jupe, mêmes chaussures, même coiffure, même couleur de peau dans chaque imagePrompt sans exception.${childAppearance ? `\nApparence physique fixe : ${childAppearance}.` : ''}
 
-Dans CHAQUE imagePrompt tu dois inclure :
-1. La description physique complète du personnage (apparence + tenue choisie)
-2. Le style : "bright colorful cartoon illustration, thick clean black outlines, smooth vibrant flat colors, cute rounded shapes, Disney/Pixar storybook style, same character design as previous pages"
-3. La scène de la page
+Dans CHAQUE imagePrompt tu dois inclure EXACTEMENT :
+1. "[Character: {prénom}, {age}-year-old {gender}, {description physique complète}, wearing {tenue IDENTIQUE à toutes les pages}]"
+2. "[Style: children's book illustration, clean bold black outlines, bright vivid colors, cute cartoon style, big round expressive eyes, chubby friendly proportions, smooth flat coloring, same character design as ALL other pages]"
+3. "[Scene: {description de la scène de cette page}]"
+4. "[No text, no letters, no words in the image]"
 
 STYLE : Histoire de type ${styleMap[data.storyStyle] || 'magique'}.
 ${data.includeEducationalMessage && data.educationalTheme ? `MESSAGE ÉDUCATIF : Intègre subtilement : ${data.educationalTheme}.` : ''}
