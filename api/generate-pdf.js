@@ -134,9 +134,12 @@ export async function buildBookPdf(order) {
     doc.rect(cardX, cardY + headerH - 12, cardW, 12).fill(GOLDEN);
 
     // Decorative dots in header
+    doc.save();
+    doc.fillOpacity(0.4);
     for (let i = 0; i < 5; i++) {
-      doc.circle(cardX + cardW / 2 - 32 + i * 16, cardY + 34, i === 2 ? 4 : 2.5).fill('rgba(255,255,255,0.4)');
+      doc.circle(cardX + cardW / 2 - 32 + i * 16, cardY + 34, i === 2 ? 4 : 2.5).fill('#FFFFFF');
     }
+    doc.restore();
 
     // Story title short label in header
     doc.font('Nunito-Bold').fontSize(12).fillColor('white')
@@ -152,21 +155,13 @@ export async function buildBookPdf(order) {
     const textW = cardW - textPadX * 2;
     const textAvailH = cardH - headerH - textPadY * 2 - 52;
 
-    // Estimate max chars that fit (18px font, ~30px per line, lineGap 14)
-    const lineH = 18 + 14;
-    const maxLines = Math.floor(textAvailH / lineH);
-    const charsPerLine = Math.floor(textW / (18 * 0.55));
-    const maxChars = maxLines * charsPerLine;
-    const displayText = page.text.length > maxChars
-      ? page.text.substring(0, maxChars - 1).trimEnd() + '…'
-      : page.text;
-
-    doc.font('Nunito').fontSize(18).fillColor(DARK)
-      .text(displayText, cardX + textPadX, textStartY, {
+    doc.font('Nunito').fontSize(19).fillColor(DARK)
+      .text(page.text, cardX + textPadX, textStartY, {
         width: textW,
         height: textAvailH,
         align: 'left',
-        lineGap: 14,
+        lineGap: 16,
+        ellipsis: true,
       });
 
     // Bottom decoration inside card — row of dots

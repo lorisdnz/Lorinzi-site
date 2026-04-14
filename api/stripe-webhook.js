@@ -136,7 +136,18 @@ export default async function handler(req, res) {
 
     if (!orderRow) return res.status(200).json({ received: true });
 
-    // 3. Generate PDF
+    // 3. Generate PDF — hard-limit story pages before building
+    const FORMAT_MAX_PAGES = { court: 14, classique: 20, long: 25 };
+    const bookFormat = orderRow.form_data?.bookFormat || 'classique';
+    const maxStoryPages = FORMAT_MAX_PAGES[bookFormat] || 20;
+    const storyPageCount = orderRow.story?.pages?.length || 0;
+    console.log('[webhook] Story pages:', storyPageCount, '→ limiting to', maxStoryPages);
+    if (storyPageCount > maxStoryPages) {
+      orderRow = {
+        ...orderRow,
+        story: { ...orderRow.story, pages: orderRow.story.pages.slice(0, maxStoryPages) }
+      };
+    }
     console.log('[webhook] Generating PDF for order:', orderId);
     await supabase.from('orders').update({ status: 'generating_pdf' }).eq('id', orderId);
     const pdfBuffer = await buildBookPdf(orderRow);
