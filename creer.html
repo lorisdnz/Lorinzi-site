@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Créer un livre — Lorinizi ✨</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { display: ['Baloo 2', 'sans-serif'], body: ['Nunito', 'sans-serif'] },
+          colors: {
+            purple: {
+              50:  '#FFFDF7', 100: '#FEF8E7', 200: '#FDEDC4',
+              300: '#FBDD94', 400: '#F7C85A', 500: '#E8A820',
+              600: '#C98C10', 700: '#A8700C', 800: '#855609', 900: '#613F06',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Nunito', sans-serif; }
+    .font-display { font-family: 'Baloo 2', sans-serif; }
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+    /* Les inputs sont invisibles mais cliquables */
+    .choice-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+    .radio-card, .check-card {
+      cursor: pointer;
+      border: 2px solid #e5e7eb;
+      transition: all 0.15s ease;
+    }
+    .radio-card:hover, .check-card:hover {
+      border-color: #EDB94A;
+    }
+    .radio-card.selected, .check-card.selected {
+      border-color: #C98C10 !important;
+      background-color: #FEFAF2 !important;
+    }
+    .color-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid #e5e7eb;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: block;
+    }
+    .color-swatch:hover {
+      transform: scale(1.1);
+      border-color: #EDB94A;
+    }
+    .color-swatch.selected {
+      border-color: #C98C10;
+      box-shadow: 0 0 0 3px white, 0 0 0 5px #C98C10;
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-purple-50 to-white min-h-screen">
+
+  <!-- NAVBAR -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-purple-100 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="text-2xl font-display font-bold text-purple-600">Lorinizi</span>
+        <span class="text-xl">✨</span>
+      </a>
+      <a href="index.html" class="text-sm text-gray-500 hover:text-purple-600 transition-colors font-medium">← Retour</a>
+    </div>
+  </nav>
+
+  <!-- LOADING OVERLAY -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-8">
+    <div class="relative">
+      <div class="w-24 h-24 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+      <span class="absolute inset-0 flex items-center justify-center text-4xl">✨</span>
+    </div>
+    <div class="text-center">
+      <p class="text-2xl font-display font-bold text-gray-800" id="loading-msg">Génération de l'histoire...</p>
+      <p class="text-gray-500 mt-2">Cela peut prendre environ 1 minute, soyez patient ☕</p>
+    </div>
+    <div class="w-72 bg-gray-200 rounded-full h-3">
+      <div id="loading-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-700" style="width:5%"></div>
+    </div>
+    <p id="loading-step" class="text-sm text-gray-400">Étape 1/4</p>
+  </div>
+
+  <div class="pt-24 pb-16 px-4">
+    <div class="max-w-2xl mx-auto">
+
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl sm:text-4xl font-display font-bold text-gray-800">Créez votre livre ✨</h1>
+        <p class="text-gray-500 mt-2">4 étapes simples, votre livre en quelques minutes</p>
+      </div>
+
+      <!-- Progress indicator -->
+      <div class="mb-8 bg-white rounded-2xl p-4 shadow-sm border border-purple-100">
+        <div class="flex items-center gap-2">
+          <div id="dot-1" class="flex flex-col items-center flex-1">
+            <div class="w-9 h-9 rounded-full bg-purple-600 text-white text-sm font-bold flex items-center justify-center ring-4 ring-purple-200">1</div>
+            <span class="text-xs mt-1 font-medium text-purple-600 hidden sm:block">L'enfant</span>
+          </div>
+          <div class="flex-1 h-1.5 bg-gray-200 rounded-full mx-1" id="line-1">
+            <div class="h-full bg-purple-600 rounded-full w-0 transition-all duration-500" id="line-1-fill"></div>
+          </div>
+          <div id="dot-2" class="flex flex-col items-center flex-1">
+            <div class="w-9 h-9 rounded-full bg-gray-200 text-gray-400 text-sm font-bold flex items-center justify-center">2</div>
+            <span class="text-xs mt-1 font-medium text-gray-400 hidden sm:block">Son monde</span>
+          </div>
+          <div class="flex-1 h-1.5 bg-gray-200 rounded-full mx-1" id="line-2">
+            <div class="h-full bg-purple-600 rounded-full w-0 transition-all duration-500" id="line-2-fill"></div>
+          </div>
+          <div id="dot-3" class="flex flex-col items-center flex-1">
+            <div class="w-9 h-9 rounded-full bg-gray-200 text-gray-400 text-sm font-bold flex items-center justify-center">3</div>
+            <span class="text-xs mt-1 font-medium text-gray-400 hidden sm:block">L'histoire</span>
+          </div>
+          <div class="flex-1 h-1.5 bg-gray-200 rounded-full mx-1" id="line-3">
+            <div class="h-full bg-purple-600 rounded-full w-0 transition-all duration-500" id="line-3-fill"></div>
+          </div>
+          <div id="dot-4" class="flex flex-col items-center flex-1">
+            <div class="w-9 h-9 rounded-full bg-gray-200 text-gray-400 text-sm font-bold flex items-center justify-center">4</div>
+            <span class="text-xs mt-1 font-medium text-gray-400 hidden sm:block">Format</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form card -->
+      <div class="bg-white rounded-3xl shadow-xl shadow-purple-100 p-6 sm:p-8">
+        <form id="book-form" novalidate>
+
+          <!-- ===== STEP 1 ===== -->
+          <div class="step-panel active" id="panel-1">
+            <h2 class="text-2xl font-display font-bold text-gray-800 mb-1">À propos de l'enfant ✨</h2>
+            <p class="text-gray-500 text-sm mb-6">Ces informations personnaliseront toute l'histoire.</p>
+
+            <div class="space-y-5">
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5">Prénom de l'enfant <span class="text-purple-500">*</span></label>
+                <input name="childFirstName" type="text" placeholder="Ex : Emma, Lucas, Léa..." required
+                  class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Genre <span class="text-purple-500">*</span></label>
+                <div class="grid grid-cols-3 gap-3">
+                  <label class="cursor-pointer">
+                    <input type="radio" name="gender" value="fille" class="hidden" required />
+                    <div class="radio-card flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 border-gray-200 text-center transition-all cursor-pointer">
+                      <span class="text-2xl">👧</span><span class="text-sm font-semibold text-gray-700">Fille</span>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer">
+                    <input type="radio" name="gender" value="garcon" class="hidden" />
+                    <div class="radio-card flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 border-gray-200 text-center transition-all cursor-pointer">
+                      <span class="text-2xl">👦</span><span class="text-sm font-semibold text-gray-700">Garçon</span>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer">
+                    <input type="radio" name="gender" value="neutre" class="hidden" />
+                    <div class="radio-card flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 border-gray-200 text-center transition-all cursor-pointer">
+                      <span class="text-2xl">🧒</span><span class="text-sm font-semibold text-gray-700">Neutre</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5">Âge <span class="text-purple-500">*</span></label>
+                <input name="age" type="number" min="1" max="12" placeholder="Ex : 5" required
+                  class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                <p class="text-xs text-gray-400 mt-1">Entre 1 et 12 ans</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5">Son caractère <span class="text-purple-500">*</span></label>
+                <textarea name="personality" rows="3" required placeholder="Ex : curieuse, toujours en train de poser des questions, aime faire rire ses amis..."
+                  class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors resize-none"></textarea>
+              </div>
+
+              <!-- Apparence de l'enfant -->
+              <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+                <p class="text-sm font-bold text-gray-700 mb-3">Apparence de l'enfant 🎨 <span class="text-xs font-normal text-gray-400">(pour les illustrations)</span></p>
+                <div class="space-y-3">
+                  <!-- Couleur de peau -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur de peau</label>
+                    <div class="flex gap-2 flex-wrap" id="skin-swatches">
+                      <label title="Très claire"><input type="radio" name="skinColor" value="very light skin" class="hidden" /><span class="color-swatch" style="background:#FDDBB4;"></span></label>
+                      <label title="Claire"><input type="radio" name="skinColor" value="light skin" class="hidden" /><span class="color-swatch" style="background:#F5C99B;"></span></label>
+                      <label title="Dorée"><input type="radio" name="skinColor" value="golden skin" class="hidden" /><span class="color-swatch" style="background:#E8A96A;"></span></label>
+                      <label title="Olive"><input type="radio" name="skinColor" value="olive skin" class="hidden" /><span class="color-swatch" style="background:#C68642;"></span></label>
+                      <label title="Brune"><input type="radio" name="skinColor" value="brown skin" class="hidden" /><span class="color-swatch" style="background:#8D5524;"></span></label>
+                      <label title="Foncée"><input type="radio" name="skinColor" value="dark brown skin" class="hidden" /><span class="color-swatch" style="background:#4A2912;"></span></label>
+                    </div>
+                  </div>
+                  <!-- Couleur des yeux -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur des yeux</label>
+                    <div class="flex gap-2 flex-wrap" id="eyes-swatches">
+                      <label title="Bleus"><input type="radio" name="eyeColor" value="blue eyes" class="hidden" /><span class="color-swatch" style="background:#6BA3D6;"></span></label>
+                      <label title="Verts"><input type="radio" name="eyeColor" value="green eyes" class="hidden" /><span class="color-swatch" style="background:#5A9E6F;"></span></label>
+                      <label title="Noisette"><input type="radio" name="eyeColor" value="hazel eyes" class="hidden" /><span class="color-swatch" style="background:#8B6914;"></span></label>
+                      <label title="Marron"><input type="radio" name="eyeColor" value="brown eyes" class="hidden" /><span class="color-swatch" style="background:#5C3A1E;"></span></label>
+                      <label title="Noirs"><input type="radio" name="eyeColor" value="dark eyes" class="hidden" /><span class="color-swatch" style="background:#1A1A1A;"></span></label>
+                      <label title="Gris"><input type="radio" name="eyeColor" value="grey eyes" class="hidden" /><span class="color-swatch" style="background:#9BA4AF;"></span></label>
+                    </div>
+                  </div>
+                  <!-- Couleur des cheveux -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur des cheveux</label>
+                    <div class="flex gap-2 flex-wrap" id="hair-swatches">
+                      <label title="Blonds"><input type="radio" name="hairColor" value="blonde hair" class="hidden" /><span class="color-swatch" style="background:#F5E17A;"></span></label>
+                      <label title="Châtain clair"><input type="radio" name="hairColor" value="light brown hair" class="hidden" /><span class="color-swatch" style="background:#C9955C;"></span></label>
+                      <label title="Châtain foncé"><input type="radio" name="hairColor" value="dark brown hair" class="hidden" /><span class="color-swatch" style="background:#7B4F2E;"></span></label>
+                      <label title="Noirs"><input type="radio" name="hairColor" value="black hair" class="hidden" /><span class="color-swatch" style="background:#1A1A1A;"></span></label>
+                      <label title="Roux"><input type="radio" name="hairColor" value="red hair" class="hidden" /><span class="color-swatch" style="background:#C0392B;"></span></label>
+                      <label title="Gris/Blanc"><input type="radio" name="hairColor" value="white hair" class="hidden" /><span class="color-swatch" style="background:#D5D5D5;"></span></label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Ce qu'il/elle aime <span class="text-purple-500">*</span></label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="hobbies-grid">
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="danse" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">💃 Danse</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="musique" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">🎵 Musique</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="animaux" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">🐾 Animaux</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="sport" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">⚽ Sport</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="voyager" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">✈️ Voyager</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="lire" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">📚 Lire</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="inventer" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">🔧 Inventer</div></label>
+                  <label class="cursor-pointer"><input type="checkbox" name="hobbies" value="autre" id="hobby-autre-cb" class="hidden" /><div class="check-card p-2.5 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">✏️ Autre</div></label>
+                </div>
+                <input type="text" name="hobbiesOther" id="hobbies-other-input" placeholder="Précisez..." class="hidden mt-2 w-full px-4 py-2.5 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:outline-none text-sm" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== STEP 2 ===== -->
+          <div class="step-panel" id="panel-2">
+            <h2 class="text-2xl font-display font-bold text-gray-800 mb-1">Son monde 🏡</h2>
+            <p class="text-gray-500 text-sm mb-6">Ces détails rendent l'histoire encore plus personnelle.</p>
+
+            <div class="space-y-5">
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">A-t-il/elle un animal de compagnie ?</label>
+                <div class="flex gap-3">
+                  <label class="cursor-pointer flex-1">
+                    <input type="radio" name="hasPet" value="true" id="pet-yes" class="hidden" />
+                    <div class="radio-card p-3 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">🐾 Oui</div>
+                  </label>
+                  <label class="cursor-pointer flex-1">
+                    <input type="radio" name="hasPet" value="false" id="pet-no" class="hidden" checked />
+                    <div class="radio-card p-3 rounded-2xl border-2 border-purple-500 bg-purple-50 text-center text-sm font-semibold text-gray-700 transition-all">Non</div>
+                  </label>
+                </div>
+                <div id="pet-fields" class="hidden mt-4 space-y-3">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-1.5">Prénom de l'animal</label>
+                      <input name="petName" type="text" placeholder="Ex : Caramel" class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-1.5">Espèce</label>
+                      <input name="petSpecies" type="text" placeholder="Ex : chien, chat..." class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur de l'animal</label>
+                    <div class="flex gap-2 flex-wrap" id="pet-swatches">
+                      <label title="Blanc"><input type="radio" name="petColor" value="white" class="hidden" /><span class="color-swatch" style="background:#F5F5F5; border-color:#ddd;"></span></label>
+                      <label title="Beige/Crème"><input type="radio" name="petColor" value="beige" class="hidden" /><span class="color-swatch" style="background:#F5DEB3;"></span></label>
+                      <label title="Doré/Jaune"><input type="radio" name="petColor" value="golden" class="hidden" /><span class="color-swatch" style="background:#E8A96A;"></span></label>
+                      <label title="Roux/Orange"><input type="radio" name="petColor" value="orange" class="hidden" /><span class="color-swatch" style="background:#D2691E;"></span></label>
+                      <label title="Marron"><input type="radio" name="petColor" value="brown" class="hidden" /><span class="color-swatch" style="background:#8B4513;"></span></label>
+                      <label title="Gris"><input type="radio" name="petColor" value="grey" class="hidden" /><span class="color-swatch" style="background:#9BA4AF;"></span></label>
+                      <label title="Noir"><input type="radio" name="petColor" value="black" class="hidden" /><span class="color-swatch" style="background:#1A1A1A;"></span></label>
+                      <label title="Tacheté"><input type="radio" name="petColor" value="spotted black and white" class="hidden" /><span class="color-swatch" style="background: linear-gradient(135deg, #fff 50%, #1A1A1A 50%); border-color:#ddd;"></span></label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5">Un proche à inclure dans l'histoire ?</label>
+                <input name="importantPeople" type="text" placeholder="Ex : sa grande sœur Chloé, son copain Noah..."
+                  class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                <p class="text-xs text-gray-400 mt-1">Facultatif — prénom et lien avec l'enfant</p>
+                <div id="person-appearance" class="hidden mt-3 bg-purple-50 rounded-2xl p-4 border border-purple-100">
+                  <p class="text-xs font-semibold text-gray-500 mb-3">Apparence du proche 🎨</p>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur de peau</label>
+                      <div class="flex gap-2 flex-wrap">
+                        <label title="Très claire"><input type="radio" name="personSkinColor" value="very light skin" class="hidden" /><span class="color-swatch" style="background:#FDDBB4;"></span></label>
+                        <label title="Claire"><input type="radio" name="personSkinColor" value="light skin" class="hidden" /><span class="color-swatch" style="background:#F5C99B;"></span></label>
+                        <label title="Dorée"><input type="radio" name="personSkinColor" value="golden skin" class="hidden" /><span class="color-swatch" style="background:#E8A96A;"></span></label>
+                        <label title="Olive"><input type="radio" name="personSkinColor" value="olive skin" class="hidden" /><span class="color-swatch" style="background:#C68642;"></span></label>
+                        <label title="Brune"><input type="radio" name="personSkinColor" value="brown skin" class="hidden" /><span class="color-swatch" style="background:#8D5524;"></span></label>
+                        <label title="Foncée"><input type="radio" name="personSkinColor" value="dark brown skin" class="hidden" /><span class="color-swatch" style="background:#4A2912;"></span></label>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur des yeux</label>
+                      <div class="flex gap-2 flex-wrap">
+                        <label title="Bleus"><input type="radio" name="personEyeColor" value="blue eyes" class="hidden" /><span class="color-swatch" style="background:#6BA3D6;"></span></label>
+                        <label title="Verts"><input type="radio" name="personEyeColor" value="green eyes" class="hidden" /><span class="color-swatch" style="background:#5A9E6F;"></span></label>
+                        <label title="Noisette"><input type="radio" name="personEyeColor" value="hazel eyes" class="hidden" /><span class="color-swatch" style="background:#8B6914;"></span></label>
+                        <label title="Marron"><input type="radio" name="personEyeColor" value="brown eyes" class="hidden" /><span class="color-swatch" style="background:#5C3A1E;"></span></label>
+                        <label title="Noirs"><input type="radio" name="personEyeColor" value="dark eyes" class="hidden" /><span class="color-swatch" style="background:#1A1A1A;"></span></label>
+                        <label title="Gris"><input type="radio" name="personEyeColor" value="grey eyes" class="hidden" /><span class="color-swatch" style="background:#9BA4AF;"></span></label>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-gray-500 mb-2">Couleur des cheveux</label>
+                      <div class="flex gap-2 flex-wrap">
+                        <label title="Blonds"><input type="radio" name="personHairColor" value="blonde hair" class="hidden" /><span class="color-swatch" style="background:#F5E17A;"></span></label>
+                        <label title="Châtain clair"><input type="radio" name="personHairColor" value="light brown hair" class="hidden" /><span class="color-swatch" style="background:#C9955C;"></span></label>
+                        <label title="Châtain foncé"><input type="radio" name="personHairColor" value="dark brown hair" class="hidden" /><span class="color-swatch" style="background:#7B4F2E;"></span></label>
+                        <label title="Noirs"><input type="radio" name="personHairColor" value="black hair" class="hidden" /><span class="color-swatch" style="background:#1A1A1A;"></span></label>
+                        <label title="Roux"><input type="radio" name="personHairColor" value="red hair" class="hidden" /><span class="color-swatch" style="background:#C0392B;"></span></label>
+                        <label title="Gris/Blanc"><input type="radio" name="personHairColor" value="white hair" class="hidden" /><span class="color-swatch" style="background:#D5D5D5;"></span></label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5">Lieu de l'histoire <span class="text-purple-500">*</span></label>
+                <input name="storySetting" type="text" placeholder="Ex : Paris, une forêt enchantée, la Bretagne, l'espace..." required
+                  class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                <p class="text-xs text-gray-400 mt-1">Lieu réel ou imaginaire</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1.5">Surnom affectif</label>
+                <input name="nickname" type="text" placeholder="Ex : ma puce, mon champion, petit loup..."
+                  class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                <p class="text-xs text-gray-400 mt-1">Facultatif</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== STEP 3 ===== -->
+          <div class="step-panel" id="panel-3">
+            <h2 class="text-2xl font-display font-bold text-gray-800 mb-1">Le style de l'histoire 📖</h2>
+            <p class="text-gray-500 text-sm mb-6">Quel type d'aventure pour votre enfant ?</p>
+
+            <div class="space-y-5">
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Style d'aventure <span class="text-purple-500">*</span></label>
+                <div class="space-y-2">
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="storyStyle" value="magique" class="hidden" required />
+                    <div class="radio-card flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <span class="text-2xl">✨</span>
+                      <div><div class="font-bold text-gray-800">Magique</div><div class="text-sm text-gray-500">Fées, créatures enchanteresses, monde fantastique</div></div>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="storyStyle" value="aventure" class="hidden" />
+                    <div class="radio-card flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <span class="text-2xl">🗺️</span>
+                      <div><div class="font-bold text-gray-800">Aventure</div><div class="text-sm text-gray-500">Exploration, défis à surmonter, quêtes épiques</div></div>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="storyStyle" value="quotidien" class="hidden" />
+                    <div class="radio-card flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <span class="text-2xl">🏡</span>
+                      <div><div class="font-bold text-gray-800">Tendre & Quotidien</div><div class="text-sm text-gray-500">Ancré dans le quotidien, doux et réconfortant</div></div>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="storyStyle" value="educatif" class="hidden" />
+                    <div class="radio-card flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <span class="text-2xl">📚</span>
+                      <div><div class="font-bold text-gray-800">Éducatif</div><div class="text-sm text-gray-500">Apprentissage bienveillant, valeurs et découvertes</div></div>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="storyStyle" value="surprise" class="hidden" />
+                    <div class="radio-card flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <span class="text-2xl">🎲</span>
+                      <div><div class="font-bold text-gray-800">Surprise !</div><div class="text-sm text-gray-500">Une histoire originale et inattendue</div></div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Inclure un message éducatif ?</label>
+                <div class="flex gap-3">
+                  <label class="cursor-pointer flex-1">
+                    <input type="radio" name="includeEducationalMessage" value="true" id="edu-yes" class="hidden" />
+                    <div class="radio-card p-3 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">💡 Oui</div>
+                  </label>
+                  <label class="cursor-pointer flex-1">
+                    <input type="radio" name="includeEducationalMessage" value="false" id="edu-no" class="hidden" />
+                    <div class="radio-card p-3 rounded-2xl border-2 border-gray-200 text-center text-sm font-semibold text-gray-700 transition-all">Non</div>
+                  </label>
+                </div>
+                <div id="edu-theme-field" class="hidden mt-3">
+                  <label class="block text-sm font-bold text-gray-700 mb-1.5">Thème éducatif</label>
+                  <input name="educationalTheme" type="text" placeholder="Ex : le respect, partager, la nature, les émotions..."
+                    class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== STEP 4 ===== -->
+          <div class="step-panel" id="panel-4">
+            <h2 class="text-2xl font-display font-bold text-gray-800 mb-1">Format et livraison 📚</h2>
+            <p class="text-gray-500 text-sm mb-6">Choisissez le format et renseignez vos coordonnées.</p>
+
+            <div class="space-y-5">
+              <!-- Format -->
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Format du livre <span class="text-purple-500">*</span></label>
+                <div class="space-y-3">
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="bookFormat" value="court" class="hidden" required />
+                    <div class="radio-card flex items-center justify-between p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <div class="flex items-center gap-3">
+                        <span class="text-3xl">📖</span>
+                        <div><div class="font-bold text-gray-800">Court</div><div class="text-sm text-gray-500">30 pages • Idéal pour les tout-petits</div></div>
+                      </div>
+                      <span class="font-bold text-purple-600 text-lg">34,90 €</span>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="bookFormat" value="classique" class="hidden" />
+                    <div class="radio-card flex items-center justify-between p-4 rounded-2xl border-2 border-purple-500 bg-purple-50 transition-all cursor-pointer">
+                      <div class="flex items-center gap-3">
+                        <span class="text-3xl">📗</span>
+                        <div>
+                          <div class="flex items-center gap-2"><div class="font-bold text-gray-800">Classique</div><span class="text-xs bg-amber-400 text-white font-bold px-2 py-0.5 rounded-full">⭐ Populaire</span></div>
+                          <div class="text-sm text-gray-500">40 pages • Le format parfait</div>
+                        </div>
+                      </div>
+                      <span class="font-bold text-purple-600 text-lg">44,90 €</span>
+                    </div>
+                  </label>
+                  <label class="cursor-pointer block">
+                    <input type="radio" name="bookFormat" value="long" class="hidden" />
+                    <div class="radio-card flex items-center justify-between p-4 rounded-2xl border-2 border-gray-200 transition-all cursor-pointer">
+                      <div class="flex items-center gap-3">
+                        <span class="text-3xl">📕</span>
+                        <div><div class="font-bold text-gray-800">Long</div><div class="text-sm text-gray-500">50 pages • Pour une grande aventure</div></div>
+                      </div>
+                      <span class="font-bold text-purple-600 text-lg">54,90 €</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Ce que vous recevrez -->
+              <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+                <h3 class="font-bold text-gray-800 mb-2 text-sm">📦 Ce que vous recevrez</h3>
+                <ul class="space-y-1.5 text-sm text-gray-600">
+                  <li class="flex items-center gap-2"><span class="text-purple-500">✓</span> Histoire unique générée par IA</li>
+                  <li class="flex items-center gap-2"><span class="text-purple-500">✓</span> Illustrations colorées page par page</li>
+                  <li class="flex items-center gap-2"><span class="text-purple-500">✓</span> Livre imprimé qualité, format 20×20 cm</li>
+                  <li class="flex items-center gap-2"><span class="text-purple-500">✓</span> Livraison à domicile sous 5-7 jours ouvrés</li>
+                </ul>
+              </div>
+
+              <!-- Livraison -->
+              <div class="border-t border-gray-100 pt-5">
+                <h3 class="font-display font-bold text-gray-800 text-lg mb-4">Informations de livraison</h3>
+                <div class="space-y-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-1.5">Nom complet <span class="text-purple-500">*</span></label>
+                      <input name="fullName" type="text" placeholder="Jean Dupont" required class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-1.5">Email <span class="text-purple-500">*</span></label>
+                      <input name="email" type="email" placeholder="jean@exemple.com" required class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1.5">Adresse <span class="text-purple-500">*</span></label>
+                    <input name="address" type="text" placeholder="12 rue des Lilas" required class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-1.5">Code postal <span class="text-purple-500">*</span></label>
+                      <input name="postalCode" type="text" placeholder="75001" required class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-bold text-gray-700 mb-1.5">Ville <span class="text-purple-500">*</span></label>
+                      <input name="city" type="text" placeholder="Paris" required class="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-purple-300 focus:border-purple-500 focus:outline-none transition-colors" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Navigation -->
+          <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-100">
+            <button type="button" id="btn-prev" onclick="prevStep()"
+              class="hidden text-gray-500 hover:text-purple-600 font-semibold px-5 py-2.5 rounded-full border-2 border-gray-200 hover:border-purple-300 transition-all text-sm">
+              ← Précédent
+            </button>
+            <div class="ml-auto flex gap-3">
+              <button type="button" id="btn-next" onclick="nextStep()"
+                class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-8 py-3 rounded-full transition-all shadow-md hover:shadow-lg">
+                Suivant →
+              </button>
+              <button type="submit" id="btn-submit"
+                class="hidden bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-gray-900 font-bold px-8 py-3 rounded-full transition-all shadow-md hover:shadow-lg">
+                Commander ✨
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Trust badges -->
+      <div class="flex flex-wrap justify-center gap-6 mt-6 text-sm text-gray-400 font-medium">
+        <span>🔒 Paiement 100% sécurisé</span>
+        <span>🌍 Livraison en France</span>
+        <span>😊 Satisfait ou remboursé</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── State ───────────────────────────────────────────
+    let currentStep = 1;
+    const totalSteps = 4;
+
+    // ─── Step navigation ─────────────────────────────────
+    function showStep(n) {
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + n).classList.add('active');
+
+      // Prev button
+      const prev = document.getElementById('btn-prev');
+      prev.classList.toggle('hidden', n === 1);
+
+      // Next / Submit
+      const next = document.getElementById('btn-next');
+      const submit = document.getElementById('btn-submit');
+      next.classList.toggle('hidden', n === totalSteps);
+      submit.classList.toggle('hidden', n !== totalSteps);
+
+      // Dots & lines
+      for (let i = 1; i <= totalSteps; i++) {
+        const dot = document.querySelector('#dot-' + i + ' div');
+        if (i < n) {
+          dot.className = 'w-9 h-9 rounded-full bg-green-500 text-white text-sm font-bold flex items-center justify-center';
+          dot.textContent = '✓';
+          const span = document.querySelector('#dot-' + i + ' span');
+          if (span) { span.className = 'text-xs mt-1 font-medium text-green-600 hidden sm:block'; }
+        } else if (i === n) {
+          dot.className = 'w-9 h-9 rounded-full bg-purple-600 text-white text-sm font-bold flex items-center justify-center ring-4 ring-purple-200';
+          dot.textContent = i;
+          const span = document.querySelector('#dot-' + i + ' span');
+          if (span) { span.className = 'text-xs mt-1 font-medium text-purple-600 hidden sm:block'; }
+        } else {
+          dot.className = 'w-9 h-9 rounded-full bg-gray-200 text-gray-400 text-sm font-bold flex items-center justify-center';
+          dot.textContent = i;
+          const span = document.querySelector('#dot-' + i + ' span');
+          if (span) { span.className = 'text-xs mt-1 font-medium text-gray-400 hidden sm:block'; }
+        }
+        if (i < totalSteps) {
+          const fill = document.getElementById('line-' + i + '-fill');
+          if (fill) fill.style.width = i < n ? '100%' : '0%';
+        }
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function validate(step) {
+      const panel = document.getElementById('panel-' + step);
+      let ok = true;
+
+      // Required text/number/email/textarea
+      panel.querySelectorAll('[required]').forEach(el => {
+        if (!el.value.trim()) {
+          el.classList.add('border-red-400', 'bg-red-50');
+          el.addEventListener('input', () => el.classList.remove('border-red-400', 'bg-red-50'), { once: true });
+          ok = false;
+        }
+      });
+
+      // Required radio groups — vérifie TOUT le groupe, pas juste l'input[required]
+      const requiredRadioNames = new Set();
+      panel.querySelectorAll('input[type=radio][required]').forEach(r => {
+        requiredRadioNames.add(r.name);
+      });
+      requiredRadioNames.forEach(name => {
+        const allInGroup = panel.querySelectorAll(`input[type=radio][name="${name}"]`);
+        const anyChecked = Array.from(allInGroup).some(r => r.checked);
+        if (!anyChecked) {
+          ok = false;
+          allInGroup.forEach(r => {
+            const card = r.nextElementSibling;
+            if (card) {
+              card.style.outline = '2px solid #f87171';
+              card.style.borderRadius = '1rem';
+              setTimeout(() => { card.style.outline = ''; }, 2000);
+            }
+          });
+        }
+      });
+
+      // Step 1: at least 1 hobby
+      if (step === 1) {
+        const checked = panel.querySelectorAll('input[name=hobbies]:checked');
+        if (checked.length === 0) {
+          document.getElementById('hobbies-grid').style.outline = '2px solid #f87171';
+          document.getElementById('hobbies-grid').style.borderRadius = '1rem';
+          setTimeout(() => { document.getElementById('hobbies-grid').style.outline = ''; }, 2000);
+          ok = false;
+        }
+      }
+
+      return ok;
+    }
+
+    function nextStep() {
+      if (!validate(currentStep)) return;
+      if (currentStep < totalSteps) {
+        currentStep++;
+        showStep(currentStep);
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 1) {
+        currentStep--;
+        showStep(currentStep);
+      }
+    }
+
+    // ─── Gestion clics sur toutes les cartes ─────────────
+    function initCards() {
+      // RADIO : clic sur le label entier
+      document.querySelectorAll('input[type=radio]').forEach(input => {
+        // Sync visuel à chaque changement
+        input.addEventListener('change', () => {
+          // Désélectionne tout le groupe
+          document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+            const card = r.nextElementSibling;
+            if (card && card.classList.contains('radio-card')) card.classList.remove('selected');
+          });
+          // Sélectionne le courant
+          const card = input.nextElementSibling;
+          if (card && card.classList.contains('radio-card')) card.classList.add('selected');
+
+          // Pet fields
+          if (input.name === 'hasPet') {
+            document.getElementById('pet-fields').classList.toggle('hidden', input.value !== 'true');
+          }
+          // Edu theme
+          if (input.name === 'includeEducationalMessage') {
+            document.getElementById('edu-theme-field').classList.toggle('hidden', input.value !== 'true');
+          }
+        });
+      });
+
+      // CHECKBOX : clic sur le label entier
+      document.querySelectorAll('input[type=checkbox]').forEach(input => {
+        input.addEventListener('change', () => {
+          const card = input.nextElementSibling;
+          if (card && card.classList.contains('check-card')) {
+            card.classList.toggle('selected', input.checked);
+          }
+          // Hobby autre
+          if (input.id === 'hobby-autre-cb') {
+            document.getElementById('hobbies-other-input').classList.toggle('hidden', !input.checked);
+          }
+        });
+      });
+    }
+
+    initCards();
+
+    // ─── Pastilles couleur ───────────────────────────────
+    document.querySelectorAll('.color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        const input = swatch.previousElementSibling;
+        if (!input) return;
+        // Désélectionne tout le groupe
+        document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+          r.checked = false;
+          if (r.nextElementSibling) r.nextElementSibling.classList.remove('selected');
+        });
+        // Sélectionne le courant
+        input.checked = true;
+        swatch.classList.add('selected');
+      });
+    });
+
+    // ─── Affiche les pastilles du proche si champ rempli ─
+    document.querySelector('input[name="importantPeople"]').addEventListener('input', function() {
+      const block = document.getElementById('person-appearance');
+      if (this.value.trim().length > 0) {
+        block.classList.remove('hidden');
+      } else {
+        block.classList.add('hidden');
+      }
+    });
+
+    // ─── Init : pré-sélectionne "Non" pour l'animal ──────
+    const petNo = document.getElementById('pet-no');
+    if (petNo) {
+      petNo.checked = true;
+      const card = petNo.nextElementSibling;
+      if (card) card.classList.add('selected');
+    }
+
+    // ─── Form submit ─────────────────────────────────────
+    const API_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : 'https://lorinzi-site.vercel.app';
+
+    document.getElementById('book-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!validate(4)) return;
+
+      const form = e.target;
+      const fd = new FormData(form);
+
+      const data = {
+        childFirstName: fd.get('childFirstName'),
+        gender: fd.get('gender'),
+        age: parseInt(fd.get('age')),
+        personality: fd.get('personality'),
+        skinColor: fd.get('skinColor') || undefined,
+        eyeColor: fd.get('eyeColor') || undefined,
+        hairColor: fd.get('hairColor') || undefined,
+        hobbies: fd.getAll('hobbies'),
+        hobbiesOther: fd.get('hobbiesOther') || undefined,
+        hasPet: fd.get('hasPet') === 'true',
+        petName: fd.get('petName') || undefined,
+        petSpecies: fd.get('petSpecies') || undefined,
+        petColor: fd.get('petColor') || undefined,
+        importantPeople: fd.get('importantPeople') || undefined,
+        personSkinColor: fd.get('personSkinColor') || undefined,
+        personEyeColor: fd.get('personEyeColor') || undefined,
+        personHairColor: fd.get('personHairColor') || undefined,
+        storySetting: fd.get('storySetting'),
+        nickname: fd.get('nickname') || undefined,
+        storyStyle: fd.get('storyStyle'),
+        includeEducationalMessage: fd.get('includeEducationalMessage') === 'true',
+        educationalTheme: fd.get('educationalTheme') || undefined,
+        bookFormat: fd.get('bookFormat'),
+        customerEmail: fd.get('email'),
+        shippingDetails: {
+          fullName: fd.get('fullName'),
+          email: fd.get('email'),
+          address: fd.get('address'),
+          postalCode: fd.get('postalCode'),
+          city: fd.get('city'),
+          country: 'FR',
+        },
+      };
+
+      // Show loading
+      const overlay = document.getElementById('loading-overlay');
+      const msg = document.getElementById('loading-msg');
+      const bar = document.getElementById('loading-bar');
+      const stepLabel = document.getElementById('loading-step');
+      overlay.classList.remove('hidden');
+
+      const steps = [
+        { msg: '✍️ Rédaction de l\'histoire...', pct: 20, label: 'Étape 1/4' },
+        { msg: '🎨 Génération des illustrations...', pct: 50, label: 'Étape 2/4' },
+        { msg: '📄 Composition du livre...', pct: 75, label: 'Étape 3/4' },
+        { msg: '💳 Préparation du paiement...', pct: 90, label: 'Étape 4/4' },
+      ];
+      let si = 0;
+      const interval = setInterval(() => {
+        if (si < steps.length) {
+          msg.textContent = steps[si].msg;
+          bar.style.width = steps[si].pct + '%';
+          stepLabel.textContent = steps[si].label;
+          si++;
+        }
+      }, 7000);
+
+      try {
+        // 1. Generate story
+        const storyRes = await fetch(API_BASE + '/api/generate-story', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        if (!storyRes.ok) throw new Error('Erreur génération histoire');
+        const story = await storyRes.json();
+
+        // 2. Generate images
+        msg.textContent = '🎨 Génération des illustrations...';
+        bar.style.width = '50%';
+        const imgRes = await fetch(API_BASE + '/api/generate-images', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ story, age: data.age })
+        });
+        if (!imgRes.ok) throw new Error('Erreur génération images');
+        const storyWithImages = await imgRes.json();
+
+        // 3. Submit order + Stripe
+        msg.textContent = '💳 Préparation du paiement...';
+        bar.style.width = '85%';
+        const orderRes = await fetch(API_BASE + '/api/submit-order', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ formData: data, story: storyWithImages })
+        });
+        if (!orderRes.ok) throw new Error('Erreur soumission commande');
+        const order = await orderRes.json();
+
+        clearInterval(interval);
+        bar.style.width = '100%';
+
+        if (order.checkoutUrl) {
+          window.location.href = order.checkoutUrl;
+        } else if (order.orderId) {
+          window.location.href = 'confirmation.html?orderId=' + order.orderId;
+        }
+      } catch (err) {
+        clearInterval(interval);
+        overlay.classList.add('hidden');
+        alert('❌ Une erreur est survenue :\n' + err.message + '\n\nVérifiez que le serveur API est bien configuré.');
+      }
+    });
+
+    // Init
+    showStep(1);
+  </script>
+</body>
+</html>

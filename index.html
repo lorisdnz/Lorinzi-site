@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lorinizi — Livres personnalisés pour enfants ✨</title>
+  <meta name="description" content="Créez un livre unique pour votre enfant, illustré et rédigé par IA, livré chez vous." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { display: ['Baloo 2', 'sans-serif'], body: ['Nunito', 'sans-serif'] },
+          colors: {
+            purple: {
+              50:  '#FFFDF7', 100: '#FEF8E7', 200: '#FDEDC4',
+              300: '#FBDD94', 400: '#F7C85A', 500: '#E8A820',
+              600: '#C98C10', 700: '#A8700C', 800: '#855609', 900: '#613F06',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Nunito', sans-serif; }
+    .font-display { font-family: 'Baloo 2', sans-serif; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(3deg); }
+      50% { transform: translateY(-12px) rotate(3deg); }
+    }
+    @keyframes float2 {
+      0%, 100% { transform: translateY(0px) rotate(-2deg); }
+      50% { transform: translateY(-8px) rotate(-2deg); }
+    }
+    .float { animation: float 4s ease-in-out infinite; }
+    .float2 { animation: float2 3.5s ease-in-out infinite 0.5s; }
+    .float3 { animation: float 5s ease-in-out infinite 1s; }
+    .gradient-text {
+      background: linear-gradient(135deg, #9333ea, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-800 antialiased">
+
+  <!-- NAVBAR -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-purple-100 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="/" class="flex items-center gap-2">
+          <span class="text-2xl font-display font-bold text-purple-600">Lorinizi</span>
+          <span class="text-xl">✨</span>
+        </a>
+        <div class="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-600">
+          <a href="#comment-ca-marche" class="hover:text-purple-600 transition-colors">Comment ça marche</a>
+          <a href="#exemples" class="hover:text-purple-600 transition-colors">Exemples</a>
+          <a href="#tarifs" class="hover:text-purple-600 transition-colors">Tarifs</a>
+        </div>
+        <a href="creer.html" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2.5 rounded-full transition-all shadow-md hover:shadow-lg text-sm">
+          ✨ Créer un livre
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="relative overflow-hidden min-h-screen flex items-center pt-16 bg-gradient-to-br from-purple-50 via-white to-pink-50">
+    <div class="absolute top-20 -left-20 w-96 h-96 bg-purple-200 rounded-full opacity-25 blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-10 -right-20 w-96 h-96 bg-pink-200 rounded-full opacity-25 blur-3xl pointer-events-none"></div>
+
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+
+        <!-- Left -->
+        <div>
+          <div class="inline-flex items-center gap-2 bg-purple-100 text-purple-700 text-sm font-bold px-4 py-2 rounded-full mb-6">
+            <span>✨</span> Livres créés par IA, imprimés pour vous
+          </div>
+          <h1 class="text-5xl sm:text-6xl font-display font-bold text-gray-800 leading-tight mb-6">
+            Un livre <span class="gradient-text">unique</span><br />
+            pour votre<br />enfant
+          </h1>
+          <p class="text-lg text-gray-600 leading-relaxed max-w-lg mb-8">
+            En 5 minutes, créez une histoire personnalisée illustrée avec votre enfant comme héros. Livrée chez vous en livre imprimé de qualité.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 mb-10">
+            <a href="creer.html" class="inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-lg px-8 py-4 rounded-full transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1">
+              ✨ Créer le livre de mon enfant
+            </a>
+            <a href="#comment-ca-marche" class="inline-flex items-center justify-center gap-2 border-2 border-purple-200 text-purple-700 hover:bg-purple-50 font-semibold text-lg px-8 py-4 rounded-full transition-all">
+              Voir comment ça marche
+            </a>
+          </div>
+          <div class="flex flex-wrap gap-6 text-sm text-gray-500 font-medium">
+            <span class="flex items-center gap-1.5">⭐ Histoire 100% unique</span>
+            <span class="flex items-center gap-1.5">🎨 Illustré par IA</span>
+            <span class="flex items-center gap-1.5">📦 Livré à domicile</span>
+          </div>
+        </div>
+
+        <!-- Right: Books mockup -->
+        <div class="flex justify-center lg:justify-end relative h-80">
+          <div class="float2 w-60 h-72 bg-gradient-to-br from-amber-300 to-orange-400 rounded-3xl shadow-xl flex flex-col items-center justify-center p-6 text-white absolute left-0 top-4 opacity-80">
+            <span class="text-5xl mb-3">🦄</span>
+            <div class="font-display font-bold text-xl text-center leading-tight">Lucas et la forêt magique</div>
+            <div class="text-xs mt-2 opacity-75">10 pages • Aventure</div>
+          </div>
+          <div class="float3 w-60 h-72 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-3xl shadow-xl flex flex-col items-center justify-center p-6 text-white absolute left-20 -top-2 opacity-70">
+            <span class="text-5xl mb-3">🐉</span>
+            <div class="font-display font-bold text-xl text-center leading-tight">Chloé et le dragon doré</div>
+            <div class="text-xs mt-2 opacity-75">15 pages • Magique</div>
+          </div>
+          <div class="float w-64 h-76 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl shadow-2xl flex flex-col items-center justify-center p-8 text-white absolute right-0 top-0 z-10">
+            <span class="text-6xl mb-4">✨</span>
+            <div class="font-display font-bold text-2xl text-center mb-2">Le livre de</div>
+            <div class="text-3xl font-display font-bold text-amber-300 text-center">Votre enfant</div>
+            <div class="mt-3 text-sm opacity-80 text-center">Une histoire rien que pour lui ❤️</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="comment-ca-marche" class="py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-display font-bold text-gray-800 mb-3">Comment ça marche ?</h2>
+        <p class="text-gray-500 text-lg">En 4 étapes simples, votre livre est créé et livré</p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div class="text-center group">
+          <div class="relative inline-block mb-5">
+            <div class="w-20 h-20 bg-purple-100 rounded-2xl flex items-center justify-center text-4xl group-hover:bg-purple-200 transition-colors mx-auto">📝</div>
+            <div class="absolute -top-2 -right-2 w-8 h-8 bg-purple-600 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">1</div>
+          </div>
+          <h3 class="font-display font-bold text-lg text-gray-800 mb-2">Personnalisez</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Prénom, caractère, hobbies… chaque détail compte pour rendre l'histoire unique.</p>
+        </div>
+        <div class="text-center group">
+          <div class="relative inline-block mb-5">
+            <div class="w-20 h-20 bg-purple-100 rounded-2xl flex items-center justify-center text-4xl group-hover:bg-purple-200 transition-colors mx-auto">🤖</div>
+            <div class="absolute -top-2 -right-2 w-8 h-8 bg-purple-600 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">2</div>
+          </div>
+          <h3 class="font-display font-bold text-lg text-gray-800 mb-2">L'IA écrit</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">GPT-4o crée une histoire unique adaptée à l'âge et la personnalité de l'enfant.</p>
+        </div>
+        <div class="text-center group">
+          <div class="relative inline-block mb-5">
+            <div class="w-20 h-20 bg-purple-100 rounded-2xl flex items-center justify-center text-4xl group-hover:bg-purple-200 transition-colors mx-auto">🎨</div>
+            <div class="absolute -top-2 -right-2 w-8 h-8 bg-purple-600 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">3</div>
+          </div>
+          <h3 class="font-display font-bold text-lg text-gray-800 mb-2">L'IA illustre</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">DALL·E 3 génère des illustrations colorées et chaleureuses pour chaque page.</p>
+        </div>
+        <div class="text-center group">
+          <div class="relative inline-block mb-5">
+            <div class="w-20 h-20 bg-purple-100 rounded-2xl flex items-center justify-center text-4xl group-hover:bg-purple-200 transition-colors mx-auto">📦</div>
+            <div class="absolute -top-2 -right-2 w-8 h-8 bg-purple-600 text-white text-sm font-bold rounded-full flex items-center justify-center shadow-md">4</div>
+          </div>
+          <h3 class="font-display font-bold text-lg text-gray-800 mb-2">Livraison</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Votre livre imprimé format 20×20 cm arrive chez vous en 5–7 jours ouvrés.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXAMPLES -->
+  <section id="exemples" class="py-24 bg-gradient-to-b from-purple-50 to-white">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-display font-bold text-gray-800 mb-3">Exemples de livres</h2>
+        <p class="text-gray-500 text-lg">Chaque histoire est 100% originale et personnalisée</p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group cursor-pointer">
+          <div class="bg-gradient-to-br from-purple-400 to-pink-400 h-44 flex items-center justify-center">
+            <span class="text-8xl group-hover:scale-110 transition-transform">🐉</span>
+          </div>
+          <div class="p-5">
+            <h3 class="font-display font-bold text-gray-800 text-lg mb-1">Chloé et le dragon doré</h3>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">👤 5 ans</span>
+              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📖 10 pages</span>
+              <span class="bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">✨ Magique</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group cursor-pointer">
+          <div class="bg-gradient-to-br from-blue-400 to-indigo-500 h-44 flex items-center justify-center">
+            <span class="text-8xl group-hover:scale-110 transition-transform">🚀</span>
+          </div>
+          <div class="p-5">
+            <h3 class="font-display font-bold text-gray-800 text-lg mb-1">L'incroyable voyage de Noah</h3>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">👤 7 ans</span>
+              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📖 15 pages</span>
+              <span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">🗺️ Aventure</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group cursor-pointer">
+          <div class="bg-gradient-to-br from-green-400 to-teal-500 h-44 flex items-center justify-center">
+            <span class="text-8xl group-hover:scale-110 transition-transform">🌿</span>
+          </div>
+          <div class="p-5">
+            <h3 class="font-display font-bold text-gray-800 text-lg mb-1">Emma découvre la forêt</h3>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">👤 4 ans</span>
+              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📖 6 pages</span>
+              <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">📚 Éducatif</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group cursor-pointer">
+          <div class="bg-gradient-to-br from-red-400 to-orange-400 h-44 flex items-center justify-center">
+            <span class="text-8xl group-hover:scale-110 transition-transform">🦸</span>
+          </div>
+          <div class="p-5">
+            <h3 class="font-display font-bold text-gray-800 text-lg mb-1">Le super-héros Lucas</h3>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">👤 6 ans</span>
+              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📖 10 pages</span>
+              <span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">🗺️ Aventure</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group cursor-pointer">
+          <div class="bg-gradient-to-br from-pink-400 to-rose-500 h-44 flex items-center justify-center">
+            <span class="text-8xl group-hover:scale-110 transition-transform">🦄</span>
+          </div>
+          <div class="p-5">
+            <h3 class="font-display font-bold text-gray-800 text-lg mb-1">Léa et les animaux magiques</h3>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">👤 3 ans</span>
+              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📖 6 pages</span>
+              <span class="bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">✨ Magique</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden group cursor-pointer">
+          <div class="bg-gradient-to-br from-amber-300 to-yellow-400 h-44 flex items-center justify-center">
+            <span class="text-8xl group-hover:scale-110 transition-transform">🤝</span>
+          </div>
+          <div class="p-5">
+            <h3 class="font-display font-bold text-gray-800 text-lg mb-1">Tom apprend à partager</h3>
+            <div class="flex flex-wrap gap-2 text-xs text-gray-500">
+              <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">👤 4 ans</span>
+              <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">📖 6 pages</span>
+              <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">📚 Éducatif</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="text-center mt-10">
+        <a href="creer.html" class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-8 py-4 rounded-full transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+          ✨ Créer le livre de mon enfant
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="tarifs" class="py-24 bg-white">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-display font-bold text-gray-800 mb-3">Nos tarifs</h2>
+        <p class="text-gray-500 text-lg">Simple, transparent, sans abonnement</p>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-6">
+        <!-- Court -->
+        <div class="rounded-3xl p-8 border-2 border-gray-200 bg-white hover:border-purple-300 hover:-translate-y-1 transition-all hover:shadow-xl">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-3">📖</div>
+            <h3 class="font-display font-bold text-2xl text-gray-800 mb-1">Court</h3>
+            <p class="text-sm text-gray-500">6 pages • Idéal pour les tout-petits</p>
+          </div>
+          <div class="text-center mb-8">
+            <span class="text-5xl font-bold text-gray-800">19,90</span>
+            <span class="text-xl text-gray-500">€</span>
+          </div>
+          <ul class="space-y-3 text-sm text-gray-600 mb-8">
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> Histoire personnalisée</li>
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> 6 illustrations IA</li>
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> Livre imprimé 20×20 cm</li>
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> Livraison incluse</li>
+          </ul>
+          <a href="creer.html" class="block text-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-full transition-colors">
+            Choisir
+          </a>
+        </div>
+
+        <!-- Classique (popular) -->
+        <div class="rounded-3xl p-8 border-2 border-purple-500 bg-purple-600 text-white shadow-xl shadow-purple-200 hover:-translate-y-2 transition-all relative">
+          <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+            <span class="bg-amber-400 text-gray-900 text-xs font-bold px-4 py-1.5 rounded-full shadow-md">⭐ Le plus populaire</span>
+          </div>
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-3">📗</div>
+            <h3 class="font-display font-bold text-2xl text-white mb-1">Classique</h3>
+            <p class="text-sm text-purple-200">10 pages • Le format parfait</p>
+          </div>
+          <div class="text-center mb-8">
+            <span class="text-5xl font-bold text-white">27,90</span>
+            <span class="text-xl text-purple-200">€</span>
+          </div>
+          <ul class="space-y-3 text-sm text-purple-100 mb-8">
+            <li class="flex items-center gap-2"><span class="text-amber-300 font-bold">✓</span> Histoire personnalisée</li>
+            <li class="flex items-center gap-2"><span class="text-amber-300 font-bold">✓</span> 10 illustrations IA</li>
+            <li class="flex items-center gap-2"><span class="text-amber-300 font-bold">✓</span> Livre imprimé 20×20 cm</li>
+            <li class="flex items-center gap-2"><span class="text-amber-300 font-bold">✓</span> Livraison incluse</li>
+          </ul>
+          <a href="creer.html" class="block text-center bg-white hover:bg-purple-50 text-purple-700 font-bold py-3 rounded-full transition-colors">
+            Choisir
+          </a>
+        </div>
+
+        <!-- Long -->
+        <div class="rounded-3xl p-8 border-2 border-gray-200 bg-white hover:border-purple-300 hover:-translate-y-1 transition-all hover:shadow-xl">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-3">📕</div>
+            <h3 class="font-display font-bold text-2xl text-gray-800 mb-1">Long</h3>
+            <p class="text-sm text-gray-500">15 pages • Pour une grande aventure</p>
+          </div>
+          <div class="text-center mb-8">
+            <span class="text-5xl font-bold text-gray-800">34,90</span>
+            <span class="text-xl text-gray-500">€</span>
+          </div>
+          <ul class="space-y-3 text-sm text-gray-600 mb-8">
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> Histoire personnalisée</li>
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> 15 illustrations IA</li>
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> Livre imprimé 20×20 cm</li>
+            <li class="flex items-center gap-2"><span class="text-purple-500 font-bold">✓</span> Livraison incluse</li>
+          </ul>
+          <a href="creer.html" class="block text-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-full transition-colors">
+            Choisir
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="py-24 bg-gradient-to-b from-purple-50 to-white">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-display font-bold text-gray-800 mb-3">Ce qu'ils en disent ❤️</h2>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-6">
+        <div class="bg-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-shadow">
+          <div class="flex gap-0.5 mb-4 text-amber-400">⭐⭐⭐⭐⭐</div>
+          <p class="text-gray-600 italic text-sm leading-relaxed mb-5">"Mon fils a demandé à relire son livre 10 fois ! L'histoire le mentionne lui, son chien Rex et son copain Thomas. Il était aux anges."</p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center font-bold text-purple-700">S</div>
+            <div>
+              <div class="font-bold text-gray-800 text-sm">Sophie M.</div>
+              <div class="text-xs text-gray-400">Maman de Léa, 5 ans</div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-shadow">
+          <div class="flex gap-0.5 mb-4 text-amber-400">⭐⭐⭐⭐⭐</div>
+          <p class="text-gray-600 italic text-sm leading-relaxed mb-5">"Cadeau de Noël parfait. Ma fille a pleuré de joie en voyant son prénom sur la couverture. La qualité d'impression est vraiment top."</p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-700">T</div>
+            <div>
+              <div class="font-bold text-gray-800 text-sm">Thomas B.</div>
+              <div class="text-xs text-gray-400">Papa de Hugo, 7 ans</div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-shadow">
+          <div class="flex gap-0.5 mb-4 text-amber-400">⭐⭐⭐⭐⭐</div>
+          <p class="text-gray-600 italic text-sm leading-relaxed mb-5">"J'ai offert ce livre pour l'anniversaire de ma petite-fille. Toute la famille a adoré l'histoire, et les illustrations sont magnifiques !"</p>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center font-bold text-pink-700">M</div>
+            <div>
+              <div class="font-bold text-gray-800 text-sm">Marie L.</div>
+              <div class="text-xs text-gray-400">Grand-mère d'Emma, 4 ans</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="py-24 bg-gradient-to-br from-purple-600 to-indigo-700">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div class="text-7xl mb-6">✨</div>
+      <h2 class="text-4xl sm:text-5xl font-display font-bold text-white mb-4">
+        Prêt à créer<br />la magie ?
+      </h2>
+      <p class="text-purple-200 text-lg mb-10 leading-relaxed">
+        Rejoignez des milliers de familles qui ont offert un livre unique à leur enfant. Livraison partout en France.
+      </p>
+      <a href="creer.html" class="inline-flex items-center gap-3 bg-white text-purple-700 hover:bg-purple-50 font-bold text-xl px-12 py-5 rounded-full transition-all shadow-2xl hover:-translate-y-1">
+        ✨ Créer mon livre maintenant
+      </a>
+      <p class="mt-5 text-purple-300 text-sm">🔒 Paiement sécurisé • 😊 Satisfait ou remboursé • 🚚 Livraison incluse</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-gray-900 text-gray-400 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl font-display font-bold text-white">Lorinizi</span>
+            <span>✨</span>
+          </div>
+          <p class="text-sm leading-relaxed">Des livres uniques pour des enfants uniques, créés par intelligence artificielle.</p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-white mb-3">Navigation</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="index.html" class="hover:text-purple-400 transition-colors">Accueil</a></li>
+            <li><a href="creer.html" class="hover:text-purple-400 transition-colors">Créer un livre</a></li>
+            <li><a href="#comment-ca-marche" class="hover:text-purple-400 transition-colors">Comment ça marche</a></li>
+            <li><a href="#tarifs" class="hover:text-purple-400 transition-colors">Tarifs</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold text-white mb-3">Légal</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="#" class="hover:text-purple-400 transition-colors">Mentions légales</a></li>
+            <li><a href="#" class="hover:text-purple-400 transition-colors">Politique de confidentialité</a></li>
+            <li><a href="#" class="hover:text-purple-400 transition-colors">CGV</a></li>
+            <li><a href="#" class="hover:text-purple-400 transition-colors">Contact</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-t border-gray-800 pt-6 text-center text-xs">
+        © 2025 Lorinizi. Tous droits réservés. Fait avec ❤️ et de la magie ✨
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
