@@ -2,16 +2,15 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const LEONARDO_API = 'https://cloud.leonardo.ai/api/rest/v1';
-// Leonardo Kino XL — meilleure cohérence de personnage
 const MODEL_ID = '6b645e3a-d64f-4341-a6d8-7a3690fbf042';
 
-// Style prefix identique pour TOUTES les images — ne jamais changer
+// Style identique pour TOUTES les images — ne jamais changer
 const STYLE_PREFIX =
   'Children\'s book illustration, clean bold black outlines, bright vivid colors, ' +
   'cute cartoon style, big expressive round eyes, chubby friendly proportions, ' +
   'smooth flat coloring with soft shading, cheerful warm atmosphere. ';
 
-async function generateWithLeonardo(apiKey, prompt, characterRefUrl = null) {
+async function generateWithLeonardo(apiKey, prompt) {
   const body = {
     prompt,
     modelId: MODEL_ID,
@@ -22,16 +21,6 @@ async function generateWithLeonardo(apiKey, prompt, characterRefUrl = null) {
     alchemy: true,
     photoReal: false,
   };
-
-  // Use first image as character reference for all subsequent images
-  if (characterRefUrl) {
-    body.characterRef = {
-      identity0: {
-        images: [characterRefUrl],
-      },
-    };
-    body.characterRefStrength = 0.8; // strong character identity lock
-  }
 
   const genRes = await fetch(`${LEONARDO_API}/generations`, {
     method: 'POST',
@@ -46,8 +35,8 @@ async function generateWithLeonardo(apiKey, prompt, characterRefUrl = null) {
   const generationId = genData.sdGenerationJob?.generationId;
   if (!generationId) throw new Error('Leonardo: pas de generationId — ' + JSON.stringify(genData));
 
-  // Poll until complete (max 90 seconds)
-  for (let i = 0; i < 30; i++) {
+  // Poll jusqu'à 54 secondes max (laisse 6s de marge sur le timeout Vercel de 60s)
+  for (let i = 0; i < 18; i++) {
     await new Promise(r => setTimeout(r, 3000));
     const pollRes = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -102,7 +91,7 @@ export default async function handler(req, res) {
     const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
     const ageStr = age || 5;
 
-    // Step 1: GPT-4o génère UNE description précise du personnage
+    // Step 1: GPT-4o génère UNE seule description précise du personnage
     const charPrompt = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{
@@ -119,7 +108,7 @@ Be very specific and simple. Max 40 words. English only.`
     const characterDesc = charPrompt.choices[0].message.content.trim();
     console.log('[generate-images] Character:', characterDesc);
 
-    // Build prompt for a given page
+    // Build prompt identique pour chaque page (style + personnage verrouillés)
     function buildPrompt(page) {
       return (
         STYLE_PREFIX +
@@ -129,37 +118,15 @@ Be very specific and simple. Max 40 words. English only.`
       );
     }
 
-    // Step 2: Génère la PAGE 1 en premier (référence de personnage)
-    const firstPage = story.pages[0];
-    let firstImagePublicUrl = null;
+    // Step 2: Toutes les pages générées en parallèle
+    console.log(`[generate-images] Generating ${story.pages.length} images in parallel...`);
 
-    try {
-      console.log('[generate-images] Generating page 1 (character reference)...');
-      const firstRawUrl = await generateWithLeonardo(leonardoKey, buildPrompt(firstPage));
-      const firstFilename = `page-${Date.now()}-${firstPage.pageNumber}.png`;
-      firstImagePublicUrl = await uploadToSupabase(supabase, firstRawUrl, firstFilename);
-      console.log('[generate-images] Page 1 done, URL:', firstImagePublicUrl);
-    } catch (err) {
-      console.error('[generate-images] Page 1 failed:', err.message);
-    }
-
-    // Step 3: Génère toutes les autres pages EN PARALLÈLE avec page 1 comme référence
-    const remainingPages = story.pages.slice(1);
-
-    const remainingResults = await Promise.all(
-      remainingPages.map(async (page) => {
+    const results = await Promise.all(
+      story.pages.map(async (page) => {
         try {
-          console.log(`[generate-images] Generating page ${page.pageNumber}...`);
-          // Use first image as character reference → same face, same outfit
-          const imageUrl = await generateWithLeonardo(
-            leonardoKey,
-            buildPrompt(page),
-            firstImagePublicUrl  // character reference from page 1
-          );
-
-          const filename = `page-${Date.now()}-${page.pageNumber}.png`;
+          const imageUrl = await generateWithLeonardo(leonardoKey, buildPrompt(page));
+          const filename = `page-${Date.now()}-${Math.random().toString(36).slice(2)}-${page.pageNumber}.png`;
           const publicUrl = await uploadToSupabase(supabase, imageUrl, filename);
-
           console.log(`[generate-images] Page ${page.pageNumber} done`);
           return { pageNumber: page.pageNumber, imageUrl: publicUrl };
         } catch (err) {
@@ -169,19 +136,16 @@ Be very specific and simple. Max 40 words. English only.`
       })
     );
 
-    // Combine results: page 1 + remaining
-    const allResults = [
-      { pageNumber: firstPage.pageNumber, imageUrl: firstImagePublicUrl },
-      ...remainingResults,
-    ];
-
     const storyWithImages = {
       ...story,
       pages: story.pages.map((page) => {
-        const r = allResults.find((x) => x.pageNumber === page.pageNumber);
+        const r = results.find((x) => x.pageNumber === page.pageNumber);
         return { ...page, imageUrl: r?.imageUrl || null };
       }),
     };
+
+    const generated = results.filter(r => r.imageUrl).length;
+    console.log(`[generate-images] Done: ${generated}/${story.pages.length} images generated`);
 
     return res.status(200).json(storyWithImages);
   } catch (err) {
