@@ -145,8 +145,10 @@ export async function buildBookPdf(order) {
     doc.font('Nunito').fontSize(fontSize).fillColor(DARK)
       .text(safeText, padX, textTop, {
         width: textW,
+        height: textAvailH,
         align: 'left',
         lineGap,
+        ellipsis: true,
       });
 
     // Page number bottom center
