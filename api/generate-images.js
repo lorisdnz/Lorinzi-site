@@ -1,6 +1,52 @@
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
+const LEONARDO_API = 'https://cloud.leonardo.ai/api/rest/v1';
+// Leonardo Anime XL — best for consistent cartoon/illustration style
+const MODEL_ID = '6b645e3a-d64f-4341-a6d8-7a3690fbf042';
+
+async function generateWithLeonardo(apiKey, prompt) {
+  // 1. Start generation
+  const genRes = await fetch(`${LEONARDO_API}/generations`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      modelId: MODEL_ID,
+      width: 1024,
+      height: 1024,
+      num_images: 1,
+      presetStyle: 'ILLUSTRATION',
+      alchemy: true,
+      photoReal: false,
+    }),
+  });
+
+  const genData = await genRes.json();
+  const generationId = genData.sdGenerationJob?.generationId;
+  if (!generationId) throw new Error('Leonardo: pas de generationId — ' + JSON.stringify(genData));
+
+  // 2. Poll until complete (max 90 seconds)
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const pollRes = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    const pollData = await pollRes.json();
+    const gen = pollData.generations_by_pk;
+    if (gen?.status === 'COMPLETE') {
+      const url = gen.generated_images?.[0]?.url;
+      if (!url) throw new Error('Leonardo: aucune image dans la réponse');
+      return url;
+    }
+    if (gen?.status === 'FAILED') throw new Error('Leonardo: génération échouée');
+  }
+  throw new Error('Leonardo: timeout dépassé');
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -13,6 +59,7 @@ export default async function handler(req, res) {
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const leonardoKey = process.env.LEONARDO_API_KEY;
     const supabase = createClient(
       process.env.PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -21,66 +68,52 @@ export default async function handler(req, res) {
     const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
     const ageStr = age || 5;
 
-    // Step 1: Ask GPT to define a precise visual character description once
+    // Step 1: GPT-4o generates ONE precise character description
     const charPrompt = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{
         role: 'user',
-        content: `Define a precise, detailed visual description of a ${ageStr}-year-old ${genderStr} character for a children's book illustration series.
+        content: `Define a precise visual description of a ${ageStr}-year-old ${genderStr} character for a children's book.
 ${childDescription ? `Physical traits: ${childDescription}.` : ''}
-Give ONLY a single short paragraph in English describing: face shape, hair (color, style, length), eyes, skin tone, and ONE specific outfit (colors, clothing items, shoes).
-This description will be copy-pasted identically into every image prompt to keep the character consistent. Be very specific and concise (max 60 words).`
+Describe ONLY: face shape, hair (color + style), eyes color, skin tone, and one specific outfit (shirt color/pattern, pants/skirt, shoes).
+Be very specific. Max 50 words. English only.`
       }],
-      temperature: 0.3,
-      max_tokens: 120,
+      temperature: 0.2,
+      max_tokens: 100,
     });
 
     const characterDesc = charPrompt.choices[0].message.content.trim();
-    console.log('[generate-images] Character description:', characterDesc);
+    console.log('[generate-images] Character:', characterDesc);
 
-    // Step 2: Build the consistent style prefix using the defined character
-    const stylePrefix =
-      `STYLE (mandatory, never change): bright colorful cartoon illustration, exactly like a modern animated children's book or Disney/Pixar animated movie poster. ` +
-      `Thick clean black outlines on all elements, smooth vibrant flat colors with subtle cel-shading, cute rounded shapes, big expressive eyes, cheerful friendly atmosphere, professional storybook quality. ` +
-      `NO watercolor, NO oil paint, NO realistic photo, NO sketch lines, NO dark mood, NO anime — ONLY bright clean cartoon style. ` +
-      `Main character (copy EXACTLY in every image — identical face, identical hair, identical outfit, never modify): ${characterDesc} ` +
-      `Scene: `;
-
-    // Step 3: Helper to upload image
-    async function generateAndUpload(pageNumber, prompt) {
-      const image = await openai.images.generate({
-        model: 'dall-e-3',
-        prompt: `${prompt} No text, no letters, no words anywhere in the image.`,
-        size: '1024x1024',
-        quality: 'hd',
-        n: 1,
-      });
-
-      const tempUrl = image.data[0].url;
-      const imgRes = await fetch(tempUrl);
-      const imgBuffer = await imgRes.arrayBuffer();
-
-      const filename = `page-${Date.now()}-${pageNumber}.png`;
-      const { error: uploadErr } = await supabase.storage
-        .from('images')
-        .upload(filename, Buffer.from(imgBuffer), { contentType: 'image/png' });
-
-      if (uploadErr) throw new Error(uploadErr.message);
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('images')
-        .getPublicUrl(filename);
-
-      return publicUrl;
-    }
-
-    // Step 4: Generate all images in parallel with the consistent character
+    // Step 2: Generate all images in parallel with Leonardo
     const results = await Promise.all(
       story.pages.map(async (page) => {
-        const prompt = `${stylePrefix}${page.imagePrompt}`;
+        const prompt =
+          `Children's book illustration, bright colorful cartoon style, thick clean outlines, vibrant flat colors, cute rounded shapes, Disney/Pixar storybook quality. ` +
+          `Main character (identical in every image): ${characterDesc}. ` +
+          `Scene: ${page.imagePrompt}. ` +
+          `No text, no words, no letters in the image.`;
+
         try {
-          const imageUrl = await generateAndUpload(page.pageNumber, prompt);
-          return { pageNumber: page.pageNumber, imageUrl };
+          const imageUrl = await generateWithLeonardo(leonardoKey, prompt);
+
+          // Download and re-upload to Supabase for permanent storage
+          const imgRes = await fetch(imageUrl);
+          const imgBuffer = await imgRes.arrayBuffer();
+          const filename = `page-${Date.now()}-${page.pageNumber}.png`;
+
+          const { error: uploadErr } = await supabase.storage
+            .from('images')
+            .upload(filename, Buffer.from(imgBuffer), { contentType: 'image/png' });
+
+          if (uploadErr) throw new Error(uploadErr.message);
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('images')
+            .getPublicUrl(filename);
+
+          console.log(`[generate-images] Page ${page.pageNumber} done`);
+          return { pageNumber: page.pageNumber, imageUrl: publicUrl };
         } catch (err) {
           console.error(`Image failed for page ${page.pageNumber}:`, err.message);
           return { pageNumber: page.pageNumber, imageUrl: null };
