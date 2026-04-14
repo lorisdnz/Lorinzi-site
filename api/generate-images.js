@@ -22,9 +22,9 @@ export default async function handler(req, res) {
     const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
     const characterBase = `a ${age || 5}-year-old ${genderStr}${childDescription ? ` with ${childDescription}` : ''}`;
     const stylePrefix =
-      `Soft watercolor children's book illustration, warm pastel colors, gentle rounded shapes, ` +
-      `consistent art style like a classic picture book (similar to Eric Carle or Quentin Blake style). ` +
-      `Main character: ${characterBase}, cute friendly face, same character design in every scene. `;
+      `Flat design children's book illustration. Simple bold shapes, clean thick outlines, bright flat solid colors. ` +
+      `Consistent cartoon style throughout. Same character in every image: ${characterBase}, ` +
+      `cute round face, simple friendly expression, EXACT SAME outfit and appearance as all other pages. `;
 
     // Generate all images in parallel
     const results = await Promise.all(

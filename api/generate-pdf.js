@@ -129,47 +129,52 @@ export async function buildBookPdf(order) {
     doc.restore();
 
     // Golden header strip inside card
-    const headerH = 44;
-    doc.save();
-    // Clip to card shape so header respects rounded corners
+    const headerH = 46;
     doc.roundedRect(cardX, cardY, cardW, headerH, 18).fill(GOLDEN);
-    // Bottom of header - flat edge
-    doc.rect(cardX, cardY + headerH - 10, cardW, 10).fill(GOLDEN);
-    doc.restore();
+    doc.rect(cardX, cardY + headerH - 12, cardW, 12).fill(GOLDEN);
 
-    // Page number in header
-    doc.font('Nunito-Bold').fontSize(13).fillColor('white')
-      .text(`✦  Page ${page.pageNumber}  ✦`, cardX, cardY + 14, {
+    // Decorative dots in header
+    for (let i = 0; i < 5; i++) {
+      doc.circle(cardX + cardW / 2 - 32 + i * 16, cardY + 34, i === 2 ? 4 : 2.5).fill('rgba(255,255,255,0.4)');
+    }
+
+    // Story title short label in header
+    doc.font('Nunito-Bold').fontSize(12).fillColor('white')
+      .text('✦  Histoire de ' + childName + '  ✦', cardX, cardY + 13, {
         width: cardW,
         align: 'center',
       });
 
-    // Subtle quote mark behind text
+    // Story text — clipped to prevent PDFKit from adding extra pages
+    const textPadX = 28;
+    const textPadY = 14;
+    const textStartY = cardY + headerH + textPadY;
+    const textW = cardW - textPadX * 2;
+    const textAvailH = cardH - headerH - textPadY * 2 - 52;
+
     doc.save();
-    doc.fillOpacity(0.07);
-    doc.font('Nunito-Bold').fontSize(100).fillColor(GOLDEN)
-      .text('\u201C', cardX + 8, cardY + 44, { lineBreak: false });
+    doc.rect(cardX + textPadX, textStartY, textW, textAvailH).clip();
+    doc.font('Nunito').fontSize(18).fillColor(DARK)
+      .text(page.text, cardX + textPadX, textStartY, {
+        width: textW,
+        align: 'left',
+        lineGap: 12,
+      });
     doc.restore();
 
-    // Story text
-    const textPadX = 30;
-    const textPadY = 16;
-    const textY = cardY + headerH + textPadY;
-    const textH = cardH - headerH - textPadY * 2 - 50; // leave space for bottom deco
-    doc.font('Nunito').fontSize(17).fillColor(DARK)
-      .text(page.text, cardX + textPadX, textY, {
-        width: cardW - textPadX * 2,
-        height: textH,
-        align: 'left',
-        lineGap: 11,
-      });
-
     // Bottom decoration inside card — row of dots
-    const decoY = cardY + cardH - 34;
+    const decoY = cardY + cardH - 30;
     for (let i = 0; i < 7; i++) {
       const dotX = cardX + cardW / 2 - 54 + i * 18;
       doc.circle(dotX, decoY, i === 0 || i === 6 ? 2.5 : i === 3 ? 5 : 3.5).fill(GOLDEN);
     }
+
+    // Page number centered at bottom of page (below card)
+    doc.font('Nunito-Bold').fontSize(11).fillColor(GOLDEN)
+      .text(`— ${page.pageNumber} —`, 0, cardY + cardH + 6, {
+        width: PAGE_SIZE,
+        align: 'center',
+      });
 
     // Bottom golden border
     doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
