@@ -2,7 +2,6 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { buildBookPdf } from './generate-pdf.js';
-import { waitUntil } from '@vercel/functions';
 
 export const config = { api: { bodyParser: false } };
 
@@ -40,7 +39,6 @@ async function getGelatoProductUid() {
     );
     if (hardcover?.productUid) return hardcover.productUid;
   } catch (_) {}
-  // Fallback known UID
   return 'photobooks-hardcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_ver';
 }
 
@@ -105,26 +103,31 @@ export default async function handler(req, res) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
+    console.error('[webhook] Signature invalide:', err.message);
     return res.status(400).json({ error: 'Webhook signature invalide' });
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const orderId = session.metadata?.orderId;
-    if (!orderId) return res.status(400).json({ error: 'orderId manquant' });
+  if (event.type !== 'checkout.session.completed') {
+    return res.status(200).json({ received: true });
+  }
 
-    const supabase = createClient(
-      process.env.PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+  const session = event.data.object;
+  const orderId = session.metadata?.orderId;
+  if (!orderId) return res.status(400).json({ error: 'orderId manquant' });
 
-    // Mark as paid immediately
+  const supabase = createClient(
+    process.env.PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  try {
+    // 1. Mark as paid
     await supabase
       .from('orders')
       .update({ status: 'paid', stripe_payment_intent_id: session.payment_intent })
       .eq('id', orderId);
 
-    // Fetch full order
+    // 2. Fetch full order
     const { data: orderRow } = await supabase
       .from('orders')
       .select('*')
@@ -133,72 +136,75 @@ export default async function handler(req, res) {
 
     if (!orderRow) return res.status(200).json({ received: true });
 
-    // Respond to Stripe immediately (30s timeout)
-    res.status(200).json({ received: true });
+    // 3. Generate PDF
+    console.log('[webhook] Generating PDF for order:', orderId);
+    await supabase.from('orders').update({ status: 'generating_pdf' }).eq('id', orderId);
+    const pdfBuffer = await buildBookPdf(orderRow);
+    console.log('[webhook] PDF generated, size:', pdfBuffer.length);
 
-    // Process asynchronously with waitUntil (keeps Vercel function alive)
-    waitUntil((async () => {
-      try {
-        // 1. Generate PDF
-        await supabase.from('orders').update({ status: 'generating_pdf' }).eq('id', orderId);
-        const pdfBuffer = await buildBookPdf(orderRow);
+    // 4. Upload PDF
+    const filename = `books/${orderId}.pdf`;
+    const { error: uploadErr } = await supabase.storage
+      .from('pdfs')
+      .upload(filename, pdfBuffer, { contentType: 'application/pdf', upsert: true });
 
-        // 2. Upload PDF to Supabase Storage
-        const filename = `books/${orderId}.pdf`;
-        await supabase.storage
-          .from('pdfs')
-          .upload(filename, pdfBuffer, { contentType: 'application/pdf', upsert: true });
-        const { data: { publicUrl: pdfUrl } } = supabase.storage.from('pdfs').getPublicUrl(filename);
+    if (uploadErr) throw new Error('Upload PDF échoué: ' + uploadErr.message);
 
-        await supabase.from('orders').update({ status: 'sending_to_manufacturer', pdf_url: pdfUrl }).eq('id', orderId);
+    const { data: { publicUrl: pdfUrl } } = supabase.storage.from('pdfs').getPublicUrl(filename);
+    console.log('[webhook] PDF uploaded:', pdfUrl);
 
-        // 3. Send to Gelato
-        const gelatoOrderId = await sendToGelato(orderRow, pdfUrl);
-        await supabase
-          .from('orders')
-          .update({ status: 'sent_to_manufacturer', gelato_order_id: gelatoOrderId })
-          .eq('id', orderId);
+    await supabase.from('orders').update({ status: 'sending_to_manufacturer', pdf_url: pdfUrl }).eq('id', orderId);
 
-        // 4. Send confirmation email
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        const siteUrl = process.env.SITE_URL || 'https://lorinizi.com';
-        const shipping = orderRow.shipping_details || {};
+    // 5. Send to Gelato
+    try {
+      const gelatoOrderId = await sendToGelato(orderRow, pdfUrl);
+      await supabase.from('orders').update({ status: 'sent_to_manufacturer', gelato_order_id: gelatoOrderId }).eq('id', orderId);
+      console.log('[webhook] Sent to Gelato:', gelatoOrderId);
+    } catch (gelatoErr) {
+      console.error('[webhook] Gelato error (non-fatal):', gelatoErr.message);
+      await supabase.from('orders').update({ status: 'sent_to_manufacturer' }).eq('id', orderId);
+    }
 
-        await resend.emails.send({
-          from: 'Lorinizi <bonjour@lorinizi.com>',
-          to: orderRow.customer_email,
-          subject: `✨ Votre livre pour ${orderRow.child_first_name} est en cours de création !`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-              <h1 style="color: #7c3aed; font-size: 28px;">Lorinizi ✨</h1>
-              <h2 style="color: #1f2937;">Commande confirmée ! 🎉</h2>
-              <p style="color: #4b5563; line-height: 1.6;">
-                Merci pour votre commande ! Nous créons en ce moment le livre de
-                <strong>${orderRow.child_first_name}</strong> :
-                <em>"${orderRow.story?.title || ''}"</em>.
-              </p>
-              <div style="background: #f3e8ff; border-radius: 16px; padding: 20px; margin: 24px 0;">
-                <p style="margin: 4px 0; color: #4b5563;">📦 Livraison : ${shipping.address || ''}, ${shipping.postalCode || ''} ${shipping.city || ''}</p>
-                <p style="margin: 4px 0; color: #4b5563;">⏱️ Délai estimé : 5–7 jours ouvrés</p>
-                <p style="margin: 4px 0; color: #4b5563;">🔖 Commande : #${orderId.slice(0, 8).toUpperCase()}</p>
-              </div>
-              <p style="color: #9ca3af; font-size: 12px; margin-top: 40px; text-align: center;">
-                © 2025 Lorinizi — Des livres uniques pour des enfants uniques
-              </p>
+    // 6. Send confirmation email
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const siteUrl = process.env.SITE_URL || 'https://lorinzi-site.vercel.app';
+      const shipping = orderRow.shipping_details || {};
+
+      await resend.emails.send({
+        from: 'Lorinizi <bonjour@lorinizi.com>',
+        to: orderRow.customer_email,
+        subject: `✨ Votre livre pour ${orderRow.child_first_name} est en cours de création !`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <h1 style="color: #C98C10; font-size: 28px;">Lorinizi ✨</h1>
+            <h2 style="color: #1f2937;">Commande confirmée ! 🎉</h2>
+            <p style="color: #4b5563; line-height: 1.6;">
+              Merci pour votre commande ! Nous créons en ce moment le livre de
+              <strong>${orderRow.child_first_name}</strong> :
+              <em>"${orderRow.story?.title || ''}"</em>.
+            </p>
+            <div style="background: #FEF8E7; border-radius: 16px; padding: 20px; margin: 24px 0;">
+              <p style="margin: 4px 0; color: #4b5563;">📦 Livraison : ${shipping.address || ''}, ${shipping.postalCode || ''} ${shipping.city || ''}</p>
+              <p style="margin: 4px 0; color: #4b5563;">⏱️ Délai estimé : 5–7 jours ouvrés</p>
+              <p style="margin: 4px 0; color: #4b5563;">🔖 Commande : #${orderId.slice(0, 8).toUpperCase()}</p>
             </div>
-          `,
-        });
-      } catch (err) {
-        console.error('[webhook-async]', err);
-        await supabase
-          .from('orders')
-          .update({ status: 'error', error_message: err.message })
-          .eq('id', orderId);
-      }
-    })());
+            <p style="color: #9ca3af; font-size: 12px; margin-top: 40px; text-align: center;">
+              © 2025 Lorinizi — Des livres uniques pour des enfants uniques
+            </p>
+          </div>
+        `,
+      });
+      console.log('[webhook] Confirmation email sent');
+    } catch (emailErr) {
+      console.error('[webhook] Email error (non-fatal):', emailErr.message);
+    }
 
-    return;
+    return res.status(200).json({ received: true });
+
+  } catch (err) {
+    console.error('[webhook] Error:', err.message);
+    await supabase.from('orders').update({ status: 'error', error_message: err.message }).eq('id', orderId);
+    return res.status(200).json({ received: true });
   }
-
-  return res.status(200).json({ received: true });
 }
