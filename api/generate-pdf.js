@@ -54,7 +54,10 @@ export async function buildBookPdf(order) {
   }
 
   // Golden overlay band at bottom
-  doc.rect(0, PAGE_SIZE * 0.65, PAGE_SIZE, PAGE_SIZE * 0.35).fill('rgba(0,0,0,0.55)');
+  doc.save();
+  doc.fillOpacity(0.55);
+  doc.rect(0, PAGE_SIZE * 0.65, PAGE_SIZE, PAGE_SIZE * 0.35).fill('#000000');
+  doc.restore();
 
   // Title
   doc.font('Nunito-Bold').fontSize(26).fillColor('white')
@@ -72,7 +75,7 @@ export async function buildBookPdf(order) {
     });
 
   // Lorinizi branding
-  doc.font('Nunito').fontSize(9).fillColor('rgba(255,255,255,0.6)')
+  doc.font('Nunito').fontSize(9).fillColor('#AAAAAA')
     .text('Lorinizi — Des livres uniques pour des enfants uniques', MARGIN, PAGE_SIZE - 22, {
       width: PAGE_SIZE - MARGIN * 2,
       align: 'center',
