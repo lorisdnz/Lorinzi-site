@@ -40,9 +40,10 @@ This description will be copy-pasted identically into every image prompt to keep
 
     // Step 2: Build the consistent style prefix using the defined character
     const stylePrefix =
-      `Children's book illustration. Art style: colorful cartoon, thick clean outlines, smooth flat colors, cute rounded shapes, professional storybook quality. ` +
-      `NO watercolor, NO realistic, NO sketch, NO painterly texture — always clean cartoon style. ` +
-      `Main character (IDENTICAL in every single image — same face shape, same hair, same clothes, never change anything): ${characterDesc} ` +
+      `STYLE (mandatory, never change): bright colorful cartoon illustration, exactly like a modern animated children's book or Disney/Pixar animated movie poster. ` +
+      `Thick clean black outlines on all elements, smooth vibrant flat colors with subtle cel-shading, cute rounded shapes, big expressive eyes, cheerful friendly atmosphere, professional storybook quality. ` +
+      `NO watercolor, NO oil paint, NO realistic photo, NO sketch lines, NO dark mood, NO anime — ONLY bright clean cartoon style. ` +
+      `Main character (copy EXACTLY in every image — identical face, identical hair, identical outfit, never modify): ${characterDesc} ` +
       `Scene: `;
 
     // Step 3: Helper to upload image

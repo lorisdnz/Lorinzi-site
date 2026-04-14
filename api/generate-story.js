@@ -31,7 +31,7 @@ Dès la première page, définis UNE SEULE fois la tenue du personnage principal
 
 Dans CHAQUE imagePrompt tu dois inclure :
 1. La description physique complète du personnage (apparence + tenue choisie)
-2. Le style : "flat design children's book illustration, simple bold shapes, thick outlines, bright flat colors, same character design as previous pages"
+2. Le style : "bright colorful cartoon illustration, thick clean black outlines, smooth vibrant flat colors, cute rounded shapes, Disney/Pixar storybook style, same character design as previous pages"
 3. La scène de la page
 
 STYLE : Histoire de type ${styleMap[data.storyStyle] || 'magique'}.
