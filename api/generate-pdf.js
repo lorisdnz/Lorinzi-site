@@ -123,6 +123,9 @@ export async function buildBookPdf(order) {
       doc.circle(PAGE_SIZE / 2 + offset, 22, i === 2 ? 5 : 3).fill(GOLDEN);
     });
 
+    // Thin golden line under dots
+    doc.rect(MARGIN, 34, PAGE_SIZE - MARGIN * 2, 1.5).fill(GOLDEN);
+
     // Manually truncate text to prevent PDFKit overflow (root cause of 232 pages)
     const padX = 42;
     const textTop = 46;
@@ -148,7 +151,7 @@ export async function buildBookPdf(order) {
 
     // Page number bottom center (real PDF page number)
     doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
-      .text(`✦  ${pdfPageNum}  ✦`, 0, PAGE_SIZE - 28, {
+      .text(`- ${pdfPageNum} -`, 0, PAGE_SIZE - 28, {
         width: PAGE_SIZE,
         align: 'center',
       });

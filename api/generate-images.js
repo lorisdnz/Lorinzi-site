@@ -40,8 +40,9 @@ This description will be copy-pasted identically into every image prompt to keep
 
     // Step 2: Build the consistent style prefix using the defined character
     const stylePrefix =
-      `Children's book illustration. Art style: ALWAYS use bright flat colors, clean simple shapes, smooth digital painting, NO watercolor, NO sketch, NO realistic style. ` +
-      `Main character (IDENTICAL in every image — same face, same hair, same outfit, never change): ${characterDesc} ` +
+      `Children's book illustration. Art style: colorful cartoon, thick clean outlines, smooth flat colors, cute rounded shapes, professional storybook quality. ` +
+      `NO watercolor, NO realistic, NO sketch, NO painterly texture — always clean cartoon style. ` +
+      `Main character (IDENTICAL in every single image — same face shape, same hair, same clothes, never change anything): ${characterDesc} ` +
       `Scene: `;
 
     // Step 3: Helper to upload image
