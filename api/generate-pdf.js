@@ -145,22 +145,29 @@ export async function buildBookPdf(order) {
         align: 'center',
       });
 
-    // Story text — clipped to prevent PDFKit from adding extra pages
+    // Story text — truncated to prevent PDFKit from adding extra pages
     const textPadX = 28;
     const textPadY = 14;
     const textStartY = cardY + headerH + textPadY;
     const textW = cardW - textPadX * 2;
     const textAvailH = cardH - headerH - textPadY * 2 - 52;
 
-    doc.save();
-    doc.rect(cardX + textPadX, textStartY, textW, textAvailH).clip();
+    // Estimate max chars that fit (18px font, ~30px per line, lineGap 14)
+    const lineH = 18 + 14;
+    const maxLines = Math.floor(textAvailH / lineH);
+    const charsPerLine = Math.floor(textW / (18 * 0.55));
+    const maxChars = maxLines * charsPerLine;
+    const displayText = page.text.length > maxChars
+      ? page.text.substring(0, maxChars - 1).trimEnd() + '…'
+      : page.text;
+
     doc.font('Nunito').fontSize(18).fillColor(DARK)
-      .text(page.text, cardX + textPadX, textStartY, {
+      .text(displayText, cardX + textPadX, textStartY, {
         width: textW,
+        height: textAvailH,
         align: 'left',
-        lineGap: 12,
+        lineGap: 14,
       });
-    doc.restore();
 
     // Bottom decoration inside card — row of dots
     const decoY = cardY + cardH - 30;

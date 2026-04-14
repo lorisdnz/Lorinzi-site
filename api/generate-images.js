@@ -22,20 +22,20 @@ export default async function handler(req, res) {
     const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
     const characterBase = `a ${age || 5}-year-old ${genderStr}${childDescription ? ` with ${childDescription}` : ''}`;
     const stylePrefix =
-      `Flat design children's book illustration. Simple bold shapes, clean thick outlines, bright flat solid colors. ` +
-      `Consistent cartoon style throughout. Same character in every image: ${characterBase}, ` +
-      `cute round face, simple friendly expression, EXACT SAME outfit and appearance as all other pages. `;
+      `Beautiful professional children's book illustration, vibrant colors, clean detailed digital art. ` +
+      `Consistent character throughout: ${characterBase}, cute expressive face, IDENTICAL outfit and appearance in every scene. ` +
+      `Style: colorful storybook illustration similar to modern picture books, smooth colors, appealing to children. `;
 
     // Generate all images in parallel
     const results = await Promise.all(
       story.pages.map(async (page) => {
-        const prompt = `${stylePrefix}Scene: ${page.imagePrompt}. No text, no letters, no words in the image.`;
+        const prompt = `${stylePrefix}Scene: ${page.imagePrompt}. No text, no letters, no words anywhere in the image.`;
         try {
           const image = await openai.images.generate({
             model: 'dall-e-3',
             prompt,
             size: '1024x1024',
-            quality: 'standard',
+            quality: 'hd',
             n: 1,
           });
 
