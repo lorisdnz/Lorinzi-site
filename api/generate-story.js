@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 
 function buildPrompt(data) {
-  const pageCount = data.bookFormat === 'court' ? 6 : data.bookFormat === 'classique' ? 10 : 15;
+  const pageCount = data.bookFormat === 'court' ? 14 : data.bookFormat === 'classique' ? 20 : 25;
   const styleMap = {
     magique: 'magique et féerique, plein de créatures enchanteresses',
     aventure: "d'aventure et d'exploration avec des défis à surmonter",
@@ -42,7 +42,7 @@ FORMAT :
     {
       "pageNumber": 1,
       "text": "Texte de la page...",
-      "imagePrompt": "Description en anglais de l'illustration (style children's book, colorful, warm)"
+      "imagePrompt": "Description en anglais de l'illustration. IMPORTANT: always use the same consistent art style: soft watercolor children's book illustration, warm pastel colors, same character design throughout"
     }
   ]
 }`.trim();
