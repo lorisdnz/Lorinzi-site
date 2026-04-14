@@ -106,56 +106,40 @@ export async function buildBookPdf(order) {
     doc.font('Nunito-Bold').fontSize(10).fillColor('white')
       .text(String(page.pageNumber), PAGE_SIZE - 44, PAGE_SIZE - 34, { width: 32, align: 'center' });
 
-    // ─── Page B: Full-page text, story feel ───
+    // ─── Page B: Clean full-page text ───
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-    // Thin golden lines top and bottom
-    doc.rect(0, 0, PAGE_SIZE, 5).fill(GOLDEN);
-    doc.rect(0, PAGE_SIZE - 5, PAGE_SIZE, 5).fill(GOLDEN);
+    // Top golden border
+    doc.rect(0, 0, PAGE_SIZE, 6).fill(GOLDEN);
+    // Bottom golden border
+    doc.rect(0, PAGE_SIZE - 6, PAGE_SIZE, 6).fill(GOLDEN);
 
-    // Small decorative diamond top center
-    const dX = PAGE_SIZE / 2;
-    const dY = 22;
-    doc.save();
-    doc.translate(dX, dY).rotate(45);
-    doc.rect(-7, -7, 14, 14).fill(GOLDEN);
-    doc.restore();
+    // Small stars decoration top
+    const starY = 22;
+    [-80, -50, 0, 50, 80].forEach((offset, i) => {
+      const size = i === 2 ? 5 : 3;
+      doc.circle(PAGE_SIZE / 2 + offset, starY, size).fill(GOLDEN);
+    });
 
-    // Drop cap
-    const firstLetter = (page.text || 'I').charAt(0).toUpperCase();
-    const restText = page.text ? page.text.slice(1) : '';
-
-    const padX = 44;
-    const textTop = 48;
+    // Full page text — single call, no overflow
+    const padX = 42;
+    const textTop = 46;
     const textW = PAGE_SIZE - padX * 2;
-    const textAvailH = PAGE_SIZE - textTop - 44;
+    const textAvailH = PAGE_SIZE - textTop - 46;
 
-    doc.font('Nunito-Bold').fontSize(72).fillColor(GOLDEN)
-      .text(firstLetter, padX, textTop - 8, { lineBreak: false });
-
-    // Line 1 alongside drop cap
-    doc.font('Nunito').fontSize(22).fillColor(DARK)
-      .text(restText, padX + 56, textTop + 10, {
-        width: textW - 56,
-        height: 60,
-        lineGap: 16,
-        ellipsis: false,
-      });
-
-    // Rest of text below drop cap
-    doc.font('Nunito').fontSize(22).fillColor(DARK)
-      .text(page.text, padX, textTop + 84, {
+    doc.font('Nunito').fontSize(21).fillColor(DARK)
+      .text(page.text, padX, textTop, {
         width: textW,
-        height: textAvailH - 84,
-        lineGap: 16,
+        height: textAvailH,
         align: 'left',
+        lineGap: 17,
         ellipsis: true,
       });
 
     // Page number bottom center
     doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
-      .text(`✦  ${page.pageNumber}  ✦`, 0, PAGE_SIZE - 30, {
+      .text(`✦  ${page.pageNumber}  ✦`, 0, PAGE_SIZE - 28, {
         width: PAGE_SIZE,
         align: 'center',
       });
