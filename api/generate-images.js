@@ -40,8 +40,8 @@ This description will be copy-pasted identically into every image prompt to keep
 
     // Step 2: Build the consistent style prefix using the defined character
     const stylePrefix =
-      `Beautiful children's book illustration, vibrant colors, clean digital art, appealing storybook style. ` +
-      `Main character (ALWAYS identical appearance): ${characterDesc} ` +
+      `Children's book illustration. Art style: ALWAYS use bright flat colors, clean simple shapes, smooth digital painting, NO watercolor, NO sketch, NO realistic style. ` +
+      `Main character (IDENTICAL in every image — same face, same hair, same outfit, never change): ${characterDesc} ` +
       `Scene: `;
 
     // Step 3: Helper to upload image

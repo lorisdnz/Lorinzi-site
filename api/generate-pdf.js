@@ -85,8 +85,12 @@ export async function buildBookPdf(order) {
       align: 'center',
     });
 
-  // ── STORY PAGES (2 pages per story page: illustration + text) ──
+  // ── STORY PAGES (2 PDF pages per story page: illustration + text) ──
+  // PDF page counter: cover = page 1, then 2 per story page
+  let pdfPageNum = 1;
+
   for (const page of storyPages) {
+    pdfPageNum++; // illustration page
 
     // ─── Page A: Full illustration ───
     doc.addPage();
@@ -101,10 +105,9 @@ export async function buildBookPdf(order) {
         .text('✨', 0, PAGE_SIZE / 2 - 30, { width: PAGE_SIZE, align: 'center' });
     }
 
-    // Page number badge (bottom right)
-    doc.circle(PAGE_SIZE - 28, PAGE_SIZE - 28, 16).fill(GOLDEN);
-    doc.font('Nunito-Bold').fontSize(10).fillColor('white')
-      .text(String(page.pageNumber), PAGE_SIZE - 44, PAGE_SIZE - 34, { width: 32, align: 'center' });
+    // No page number on illustration pages — cleaner look
+
+    pdfPageNum++; // text page
 
     // ─── Page B: Clean full-page text ───
     doc.addPage();
@@ -115,31 +118,37 @@ export async function buildBookPdf(order) {
     // Bottom golden border
     doc.rect(0, PAGE_SIZE - 6, PAGE_SIZE, 6).fill(GOLDEN);
 
-    // Small stars decoration top
-    const starY = 22;
+    // Small dots decoration top
     [-80, -50, 0, 50, 80].forEach((offset, i) => {
-      const size = i === 2 ? 5 : 3;
-      doc.circle(PAGE_SIZE / 2 + offset, starY, size).fill(GOLDEN);
+      doc.circle(PAGE_SIZE / 2 + offset, 22, i === 2 ? 5 : 3).fill(GOLDEN);
     });
 
-    // Full page text — single call, no overflow
+    // Manually truncate text to prevent PDFKit overflow (root cause of 232 pages)
     const padX = 42;
     const textTop = 46;
     const textW = PAGE_SIZE - padX * 2;
     const textAvailH = PAGE_SIZE - textTop - 46;
+    const fontSize = 21;
+    const lineGap = 17;
+    const lineH = fontSize + lineGap;
+    const maxLines = Math.floor(textAvailH / lineH);
+    // ~0.5 chars per point width for Nunito at this size
+    const charsPerLine = Math.floor(textW / (fontSize * 0.5));
+    const maxChars = maxLines * charsPerLine;
+    const safeText = page.text && page.text.length > maxChars
+      ? page.text.slice(0, maxChars - 1).trimEnd() + '…'
+      : (page.text || '');
 
-    doc.font('Nunito').fontSize(21).fillColor(DARK)
-      .text(page.text, padX, textTop, {
+    doc.font('Nunito').fontSize(fontSize).fillColor(DARK)
+      .text(safeText, padX, textTop, {
         width: textW,
-        height: textAvailH,
         align: 'left',
-        lineGap: 17,
-        ellipsis: true,
+        lineGap,
       });
 
-    // Page number bottom center
+    // Page number bottom center (real PDF page number)
     doc.font('Nunito-Bold').fontSize(13).fillColor(GOLDEN)
-      .text(`✦  ${page.pageNumber}  ✦`, 0, PAGE_SIZE - 28, {
+      .text(`✦  ${pdfPageNum}  ✦`, 0, PAGE_SIZE - 28, {
         width: PAGE_SIZE,
         align: 'center',
       });
