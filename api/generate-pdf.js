@@ -88,33 +88,57 @@ export async function buildBookPdf(order) {
   doc.addPage();
   doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
+  // Image pleine page (top 68%)
   const coverImg = storyPages[0]?.imageUrl;
+  const COVER_IMG_H = Math.floor(PAGE_SIZE * 0.68); // 385px
   if (coverImg) {
     const buf = await fetchImage(coverImg);
-    if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
+    if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: COVER_IMG_H, cover: [PAGE_SIZE, COVER_IMG_H] });
   }
 
-  doc.save();
-  doc.fillOpacity(0.68);
-  doc.rect(0, PAGE_SIZE * 0.52, PAGE_SIZE, PAGE_SIZE * 0.48).fill('#000000');
-  doc.restore();
+  // Bande or en bas de l'image (séparateur)
+  doc.rect(0, COVER_IMG_H - 6, PAGE_SIZE, 6).fill(GOLDEN);
 
+  // Zone titre — fond crème élégant (32% bas)
+  const titleZoneY = COVER_IMG_H;
+  const titleZoneH = PAGE_SIZE - COVER_IMG_H;
+  doc.rect(0, titleZoneY, PAGE_SIZE, titleZoneH).fill(CREAM);
+
+  // Bordure dorée tout autour de la zone titre
+  doc.rect(0, titleZoneY, PAGE_SIZE, 4).fill(GOLDEN);
+  doc.rect(0, PAGE_SIZE - 4, PAGE_SIZE, 4).fill(GOLDEN);
+  doc.rect(0, titleZoneY, 4, titleZoneH).fill(GOLDEN);
+  doc.rect(PAGE_SIZE - 4, titleZoneY, 4, titleZoneH).fill(GOLDEN);
+
+  // Points décoratifs
+  [-50, -25, 0, 25, 50].forEach((offset, i) => {
+    doc.circle(PAGE_SIZE / 2 + offset, titleZoneY + 22, i === 2 ? 5 : 3).fill(GOLDEN);
+  });
+
+  // Titre principal — grand et impactant
   const title = story.title || `L'histoire de ${childName}`;
-  doc.font('Nunito-Bold').fontSize(30).fillColor('#FFD980')
-    .text(title.slice(0, 80), MARGIN, PAGE_SIZE * 0.55, {
-      width: PAGE_SIZE - MARGIN * 2, align: 'center', lineGap: 5,
+  doc.font('Nunito-Bold').fontSize(32).fillColor(DARK)
+    .text(title.slice(0, 60), 20, titleZoneY + 40, {
+      width: PAGE_SIZE - 40,
+      align: 'center',
+      lineGap: 6,
+      height: 90,
+      ellipsis: true,
     });
 
-  doc.rect(PAGE_SIZE / 2 - 50, PAGE_SIZE * 0.72, 100, 2).fill(GOLDEN);
+  // Ligne dorée décorative
+  doc.rect(PAGE_SIZE / 2 - 60, titleZoneY + 140, 120, 2.5).fill(GOLDEN);
 
-  doc.font('Nunito').fontSize(14).fillColor('#FFFFFF')
-    .text(`Un livre créé rien que pour ${childName}`, MARGIN, PAGE_SIZE * 0.75, {
-      width: PAGE_SIZE - MARGIN * 2, align: 'center',
+  // Prénom de l'enfant mis en valeur
+  doc.font('Nunito-Bold').fontSize(16).fillColor(GOLDEN)
+    .text(childName.toUpperCase(), 20, titleZoneY + 152, {
+      width: PAGE_SIZE - 40, align: 'center', height: 25,
     });
 
-  doc.font('Nunito').fontSize(9).fillColor('#AAAAAA')
-    .text('Lorinizi — Des livres uniques pour des enfants uniques', MARGIN, PAGE_SIZE - 22, {
-      width: PAGE_SIZE - MARGIN * 2, align: 'center',
+  // Branding discret
+  doc.font('Nunito').fontSize(8).fillColor('#BBBBBB')
+    .text('Lorinizi', 20, PAGE_SIZE - 18, {
+      width: PAGE_SIZE - 40, align: 'center', height: 14,
     });
 
   // ── STORY PAGES ──────────────────────────────────────────────
