@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "headers": [
     {
       "source": "/api/(.*)",
@@ -10,10 +9,8 @@
       ]
     }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/creer", "dest": "/creer.html" },
-    { "src": "/confirmation", "dest": "/confirmation.html" },
-    { "src": "/", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/creer", "destination": "/creer.html" },
+    { "source": "/confirmation", "destination": "/confirmation.html" }
   ]
 }
