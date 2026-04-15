@@ -21,7 +21,8 @@ const MAX_STORY_PAGES = { court: 14, classique: 20, long: 25 };
 function fitText(doc, text, width, maxHeight, lineGap) {
   if (!text || text.trim() === '') return '';
 
-  doc.fontSize(26); // must match render font size
+  // MUST set both font AND size to get correct measurements
+  doc.font('Nunito').fontSize(26);
 
   // If it fits as-is, return it directly
   if (doc.heightOfString(text, { width, lineGap }) <= maxHeight) return text;
@@ -174,10 +175,12 @@ export async function buildBookPdf(order) {
 
     doc.font('Nunito').fontSize(FONT_SZ).fillColor(DARK)
       .text(displayText, PAD_X, TEXT_TOP, {
-        width:   TEXT_W,
-        align:   'left',
-        lineGap: LINE_GAP,
+        width:     TEXT_W,
+        height:    TEXT_AVAIL,  // hard clip — prevents any page overflow
+        align:     'left',
+        lineGap:   LINE_GAP,
         lineBreak: true,
+        ellipsis:  true,
       });
 
     // Numéro de page — position absolue fixe
