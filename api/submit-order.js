@@ -40,10 +40,16 @@ export default async function handler(req, res) {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const siteUrl = process.env.SITE_URL || 'https://lorinzi-site.vercel.app';
 
+    // Validate email before passing to Stripe
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmail = formData.customerEmail && emailRegex.test(formData.customerEmail)
+      ? formData.customerEmail
+      : undefined;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
-      customer_email: formData.customerEmail,
+      ...(validEmail ? { customer_email: validEmail } : {}),
       metadata: { orderId },
       locale: 'fr',
       line_items: [
