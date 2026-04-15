@@ -832,7 +832,10 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ formData: data, story: storyWithImages })
         });
-        if (!orderRes.ok) throw new Error('Erreur soumission commande');
+        if (!orderRes.ok) {
+          const errData = await orderRes.json().catch(() => ({}));
+          throw new Error('Erreur soumission: ' + (errData.error || orderRes.status));
+        }
         const order = await orderRes.json();
 
         clearInterval(interval);
