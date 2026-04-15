@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "api/generate-images.js": { "maxDuration": 60 },
-    "api/generate-story.js":  { "maxDuration": 60 },
-    "api/stripe-webhook.js":  { "maxDuration": 60 },
-    "api/generate-pdf.js":    { "maxDuration": 60 }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
