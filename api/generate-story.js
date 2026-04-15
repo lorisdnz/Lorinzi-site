@@ -31,7 +31,7 @@ Choisis UNE SEULE tenue pour le personnage principal sur la page 1 et ne la chan
 
 Dans CHAQUE imagePrompt tu dois inclure EXACTEMENT :
 1. "[Character: {prénom}, {age}-year-old {gender}, {description physique complète}, wearing {tenue IDENTIQUE à toutes les pages}]"
-2. "[Style: children's book illustration, clean bold black outlines, bright vivid colors, cute cartoon style, big round expressive eyes, chubby friendly proportions, smooth flat coloring, same character design as ALL other pages]"
+2. "[Style: high quality children's book illustration, rich vibrant colors, detailed digital painting, expressive cartoon characters with big eyes, warm cheerful lighting, soft shading and depth, professional storybook quality, same character design as ALL other pages]"
 3. "[Scene: {description de la scène de cette page}]"
 4. "[No text, no letters, no words in the image]"
 
