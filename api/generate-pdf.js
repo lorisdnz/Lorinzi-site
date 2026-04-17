@@ -10,24 +10,55 @@ const FONT_BOLD    = join(__dirname, 'fonts', 'Nunito-Bold.ttf');
 const LOGO_PATH    = join(__dirname, '..', 'logo.png');
 
 const PAGE_SIZE = 567;
-const MARGIN    = 40;
 const GOLDEN    = '#C98C10';
 const CREAM     = '#FFFDF7';
 const DARK      = '#2D1B00';
 
 const MAX_STORY_PAGES = { court: 14, classique: 20, long: 25 };
 
-// ── Truncate text to a hard character limit ─────────────────────
-// At font-size 26, Nunito averages ~13.5px per char, page width=467px
-// → ~34 chars per line × 8 lines = ~272 chars max.
-// We use 220 chars as a safe conservative limit.
-function hardTruncate(text, maxChars = 220) {
-  if (!text) return '';
-  const t = text.trim();
-  if (t.length <= maxChars) return t;
-  // Cut at last space before limit
-  const cut = t.slice(0, maxChars).replace(/\s+\S*$/, '');
-  return cut + '…';
+// ── Render text line-by-line at explicit Y coords ────────────────
+// This is the ONLY reliable way to prevent PDFKit from adding pages.
+// doc.text() with height+ellipsis can still trigger page breaks.
+function renderTextSafe(doc, text, x, y, maxWidth, maxHeight, fontSize, lineGap) {
+  if (!text) return;
+  doc.font('Nunito').fontSize(fontSize).fillColor(DARK);
+
+  const LINE_H   = fontSize + lineGap;
+  const MAX_LINES = Math.floor(maxHeight / LINE_H);
+  const words    = text.trim().split(/\s+/);
+
+  // Build lines by measuring word widths
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? current + ' ' + word : word;
+    if (doc.widthOfString(test) > maxWidth) {
+      if (current) {
+        lines.push(current);
+        if (lines.length >= MAX_LINES) break;
+      }
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current && lines.length < MAX_LINES) lines.push(current);
+
+  // If text was cut, add ellipsis to last line
+  const fullText = text.trim();
+  const rendered = lines.join(' ');
+  if (rendered.length < fullText.length - 3 && lines.length > 0) {
+    let last = lines[lines.length - 1];
+    while (last.length > 0 && doc.widthOfString(last + '...') > maxWidth) {
+      last = last.slice(0, -1).trimEnd();
+    }
+    lines[lines.length - 1] = last + '...';
+  }
+
+  // Render each line at explicit Y — PDFKit CANNOT auto-add pages
+  lines.forEach((ln, i) => {
+    doc.text(ln, x, y + i * LINE_H, { lineBreak: false });
+  });
 }
 
 export async function buildBookPdf(order) {
@@ -36,7 +67,6 @@ export async function buildBookPdf(order) {
   const bookFormat = order.form_data?.bookFormat || 'classique';
   const maxPages   = MAX_STORY_PAGES[bookFormat] || 20;
 
-  // Triple safety net — slice to maxPages
   const storyPages = (story?.pages || []).slice(0, maxPages);
   console.log(`[pdf] format=${bookFormat} maxPages=${maxPages} storyPages=${storyPages.length}`);
 
@@ -61,36 +91,34 @@ export async function buildBookPdf(order) {
     } catch { return null; }
   }
 
-  // Text zone
-  const PAD_X      = 50;
-  const TEXT_TOP   = 78;
-  const TEXT_W     = PAGE_SIZE - PAD_X * 2;   // 467px
-  const TEXT_H     = PAGE_SIZE - TEXT_TOP - 60; // 429px
-  const FONT_SZ    = 26;
-  const LINE_GAP   = 22;
+  // Text zone constants
+  const PAD_X    = 50;
+  const TEXT_TOP = 78;
+  const TEXT_W   = PAGE_SIZE - PAD_X * 2;   // 467px
+  const TEXT_H   = PAGE_SIZE - TEXT_TOP - 60; // 429px
+  const FONT_SZ  = 26;
+  const LINE_GAP = 20;
 
   // ── COVER PAGE ──────────────────────────────────────────────
   doc.addPage();
   doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-  const COVER_H = Math.floor(PAGE_SIZE * 0.70); // top 70% = image
+  const COVER_H  = Math.floor(PAGE_SIZE * 0.70);
   const coverImg = storyPages[0]?.imageUrl;
   if (coverImg) {
     const buf = await fetchImage(coverImg);
     if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: COVER_H, cover: [PAGE_SIZE, COVER_H] });
   }
 
-  // Golden strip at bottom of image
   doc.rect(0, COVER_H - 5, PAGE_SIZE, 5).fill(GOLDEN);
 
-  // Cream title zone
-  const TZ = COVER_H; // title zone starts here
+  const TZ = COVER_H;
   doc.rect(0, TZ, PAGE_SIZE, PAGE_SIZE - TZ).fill(CREAM);
 
   // Frame
-  doc.rect(0, TZ,           PAGE_SIZE, 4).fill(GOLDEN);
+  doc.rect(0, TZ,            PAGE_SIZE, 4).fill(GOLDEN);
   doc.rect(0, PAGE_SIZE - 4, PAGE_SIZE, 4).fill(GOLDEN);
-  doc.rect(0, TZ,           4, PAGE_SIZE - TZ).fill(GOLDEN);
+  doc.rect(0, TZ,            4, PAGE_SIZE - TZ).fill(GOLDEN);
   doc.rect(PAGE_SIZE - 4, TZ, 4, PAGE_SIZE - TZ).fill(GOLDEN);
 
   // Decorative dots
@@ -98,7 +126,7 @@ export async function buildBookPdf(order) {
     doc.circle(PAGE_SIZE / 2 + off, TZ + 20, i === 2 ? 5 : 3).fill(GOLDEN);
   });
 
-  // Title — big, centered
+  // Title
   const title = story?.title || `L'histoire de ${childName}`;
   doc.font('Nunito-Bold').fontSize(30).fillColor(DARK)
     .text(title.slice(0, 55), 20, TZ + 35, {
@@ -106,10 +134,8 @@ export async function buildBookPdf(order) {
       height: 80, lineGap: 4, ellipsis: true,
     });
 
-  // Golden separator line
   doc.rect(PAGE_SIZE / 2 - 55, TZ + 125, 110, 2.5).fill(GOLDEN);
 
-  // Small Lorinizi branding only
   doc.font('Nunito').fontSize(9).fillColor('#BBBBBB')
     .text('Lorinizi', 0, PAGE_SIZE - 18, {
       width: PAGE_SIZE, align: 'center', lineBreak: false,
@@ -128,7 +154,13 @@ export async function buildBookPdf(order) {
     if (imgBuf) {
       doc.image(imgBuf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
     } else {
-      doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill('#FEF3C7');
+      // Fallback: styled cream page (not blank white)
+      doc.rect(0, 0,            PAGE_SIZE, 8).fill(GOLDEN);
+      doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
+      doc.rect(0, 0,            8, PAGE_SIZE).fill(GOLDEN);
+      doc.rect(PAGE_SIZE - 8, 0, 8, PAGE_SIZE).fill(GOLDEN);
+      doc.font('Nunito-Bold').fontSize(48).fillColor(GOLDEN)
+        .text('*', 0, PAGE_SIZE / 2 - 30, { width: PAGE_SIZE, align: 'center', lineBreak: false });
     }
 
     // ─── Text page ───
@@ -136,14 +168,14 @@ export async function buildBookPdf(order) {
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-    // Golden bars
-    doc.rect(0, 0,             PAGE_SIZE, 12).fill(GOLDEN);
+    // Golden bars top & bottom
+    doc.rect(0, 0,              PAGE_SIZE, 12).fill(GOLDEN);
     doc.rect(0, PAGE_SIZE - 12, PAGE_SIZE, 12).fill(GOLDEN);
 
     // Inner frame
-    doc.rect(22, 22,            PAGE_SIZE - 44, 1.5).fill(GOLDEN);
+    doc.rect(22, 22,               PAGE_SIZE - 44, 1.5).fill(GOLDEN);
     doc.rect(22, PAGE_SIZE - 23.5, PAGE_SIZE - 44, 1.5).fill(GOLDEN);
-    doc.rect(22, 22,            1.5, PAGE_SIZE - 44).fill(GOLDEN);
+    doc.rect(22, 22,               1.5, PAGE_SIZE - 44).fill(GOLDEN);
     doc.rect(PAGE_SIZE - 23.5, 22, 1.5, PAGE_SIZE - 44).fill(GOLDEN);
 
     // Corner dots
@@ -161,17 +193,8 @@ export async function buildBookPdf(order) {
     // Separator
     doc.rect(60, 57, PAGE_SIZE - 120, 2).fill(GOLDEN);
 
-    // ── TEXT — hard truncate then render with height clip ──────
-    const safeText = hardTruncate(page.text, 220);
-
-    doc.font('Nunito').fontSize(FONT_SZ).fillColor(DARK)
-      .text(safeText, PAD_X, TEXT_TOP, {
-        width:    TEXT_W,
-        height:   TEXT_H,
-        align:    'left',
-        lineGap:  LINE_GAP,
-        ellipsis: true,
-      });
+    // ── TEXT — manual line-by-line (guaranteed no extra pages) ──
+    renderTextSafe(doc, page.text || '', PAD_X, TEXT_TOP, TEXT_W, TEXT_H, FONT_SZ, LINE_GAP);
 
     // Page number inside bottom golden bar
     doc.font('Nunito-Bold').fontSize(11).fillColor(CREAM)
@@ -183,47 +206,50 @@ export async function buildBookPdf(order) {
   // ── LAST PAGE ────────────────────────────────────────────────
   doc.addPage();
   doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
-  doc.rect(0, 0,              PAGE_SIZE, 8).fill(GOLDEN);
-  doc.rect(0, PAGE_SIZE - 8,  PAGE_SIZE, 8).fill(GOLDEN);
+  doc.rect(0, 0,             PAGE_SIZE, 8).fill(GOLDEN);
+  doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
 
-  // Decorative circle
+  // Decorative ring of dots
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
-    doc.circle(PAGE_SIZE / 2 + Math.cos(a) * 80, PAGE_SIZE * 0.28 + Math.sin(a) * 80,
-      i % 2 === 0 ? 4 : 2.5).fill(GOLDEN);
+    doc.circle(
+      PAGE_SIZE / 2 + Math.cos(a) * 80,
+      PAGE_SIZE * 0.26 + Math.sin(a) * 80,
+      i % 2 === 0 ? 4 : 2.5
+    ).fill(GOLDEN);
   }
 
   doc.font('Nunito-Bold').fontSize(72).fillColor(GOLDEN)
-    .text('Fin', 0, PAGE_SIZE * 0.18, { width: PAGE_SIZE, align: 'center', lineBreak: false });
+    .text('Fin', 0, PAGE_SIZE * 0.16, { width: PAGE_SIZE, align: 'center', lineBreak: false });
 
   doc.font('Nunito-Bold').fontSize(20).fillColor(DARK)
-    .text(`Bravo ${childName} !`, 0, PAGE_SIZE * 0.47, {
+    .text(`Bravo ${childName} !`, 0, PAGE_SIZE * 0.38, {
       width: PAGE_SIZE, align: 'center', lineBreak: false,
     });
 
-  // Dots
+  // Dots row
   for (let i = 0; i < 7; i++) {
-    doc.circle(PAGE_SIZE / 2 - 60 + i * 20, PAGE_SIZE * 0.60, i === 3 ? 5 : 3).fill(GOLDEN);
+    doc.circle(PAGE_SIZE / 2 - 60 + i * 20, PAGE_SIZE * 0.47, i === 3 ? 5 : 3).fill(GOLDEN);
   }
 
-  // Logo
+  // Logo — big and centered
   try {
-    const logoBuf = readFileSync(LOGO_PATH);
-    const logoSize = 110;
-    doc.image(logoBuf, (PAGE_SIZE - logoSize) / 2, PAGE_SIZE * 0.66, {
+    const logoBuf  = readFileSync(LOGO_PATH);
+    const logoSize = 240;
+    doc.image(logoBuf, (PAGE_SIZE - logoSize) / 2, PAGE_SIZE * 0.51, {
       fit: [logoSize, logoSize],
     });
   } catch (e) {
     console.error('[pdf] Logo not found:', e.message);
-    doc.font('Nunito-Bold').fontSize(18).fillColor(GOLDEN)
-      .text('Lorinizi', 0, PAGE_SIZE * 0.72, { width: PAGE_SIZE, align: 'center', lineBreak: false });
+    doc.font('Nunito-Bold').fontSize(26).fillColor(GOLDEN)
+      .text('Lorinizi', 0, PAGE_SIZE * 0.58, { width: PAGE_SIZE, align: 'center', lineBreak: false });
   }
 
   doc.end();
   await pdfEnd;
 
   const buf = Buffer.concat(buffers);
-  console.log(`[pdf] Done — ${buf.length} bytes, expected ~${storyPages.length * 2 + 2} pages`);
+  console.log(`[pdf] Done — ${buf.length} bytes, ${storyPages.length * 2 + 2} pages expected`);
   return buf;
 }
 
