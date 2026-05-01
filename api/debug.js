@@ -1,79 +1,88 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Endpoint de diagnostic — GET /api/debug
-// Vérifie toutes les config et teste les connexions
 export default async function handler(req, res) {
   const report = {};
 
-  // 1. Variables d'environnement
-  report.env = {
-    OPENAI_API_KEY:           !!process.env.OPENAI_API_KEY,
-    LEONARDO_API_KEY:         !!process.env.LEONARDO_API_KEY,
-    PUBLIC_SUPABASE_URL:      !!process.env.PUBLIC_SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY:!!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    STRIPE_SECRET_KEY:        !!process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET:    !!process.env.STRIPE_WEBHOOK_SECRET,
-    RESEND_API_KEY:           !!process.env.RESEND_API_KEY,
-    GELATO_API_KEY:           !!process.env.GELATO_API_KEY,
-  };
+  const supabase = createClient(
+    process.env.PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
 
-  // 2. Test Supabase connexion + buckets
+  // 1. Dernière commande — est-ce que les imageUrls sont bien dans la DB ?
   try {
-    const supabase = createClient(
-      process.env.PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-    const { data: buckets, error } = await supabase.storage.listBuckets();
-    if (error) {
-      report.supabase = { ok: false, error: error.message };
-    } else {
-      const bucketNames = buckets.map(b => b.name);
-      report.supabase = {
-        ok: true,
-        buckets: bucketNames,
-        has_images_bucket: bucketNames.includes('images'),
-        has_pdfs_bucket:   bucketNames.includes('pdfs'),
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('id, status, created_at, story')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const order = orders?.[0];
+    if (order) {
+      const pages = order.story?.pages || [];
+      const pagesWithImages    = pages.filter(p => p.imageUrl).length;
+      const pagesWithoutImages = pages.filter(p => !p.imageUrl).length;
+
+      report.last_order = {
+        id:                   order.id.slice(0, 8),
+        status:               order.status,
+        date:                 order.created_at,
+        total_pages:          pages.length,
+        pages_with_imageUrl:  pagesWithImages,
+        pages_without_imageUrl: pagesWithoutImages,
+        sample_imageUrl:      pages.find(p => p.imageUrl)?.imageUrl || 'AUCUNE',
       };
 
-      // Test: lister les 3 dernières images
-      if (bucketNames.includes('images')) {
-        const { data: files } = await supabase.storage.from('images').list('', { limit: 3, sortBy: { column: 'created_at', order: 'desc' } });
-        report.supabase.last_images = files?.map(f => f.name) || [];
+      // 2. Tester si on peut télécharger l'image via Supabase admin
+      const sampleUrl = pages.find(p => p.imageUrl)?.imageUrl;
+      if (sampleUrl) {
+        try {
+          const match = sampleUrl.match(/\/storage\/v1\/object\/(?:public\/)?images\/(.+?)(?:\?|$)/);
+          if (match?.[1]) {
+            const { data, error } = await supabase.storage.from('images').download(match[1]);
+            report.image_download_test = {
+              filename: match[1],
+              ok:       !!data && !error,
+              error:    error?.message || null,
+              size_kb:  data ? Math.round((await data.arrayBuffer()).byteLength / 1024) : null,
+            };
+          } else {
+            report.image_download_test = { ok: false, error: 'URL pattern ne correspond pas', url: sampleUrl };
+          }
+        } catch (e) {
+          report.image_download_test = { ok: false, error: e.message };
+        }
+      } else {
+        report.image_download_test = { ok: false, error: 'Aucune imageUrl dans la commande — images jamais sauvegardées' };
       }
-
-      // Test: lire la dernière commande
-      const { data: orders } = await supabase.from('orders').select('id, status, created_at').order('created_at', { ascending: false }).limit(3);
-      report.supabase.last_orders = orders?.map(o => ({ id: o.id.slice(0,8), status: o.status, date: o.created_at })) || [];
     }
   } catch (e) {
-    report.supabase = { ok: false, error: e.message };
+    report.last_order = { error: e.message };
   }
 
-  // 3. Test Leonardo API key
+  // 3. Dernières images dans le bucket
+  try {
+    const { data: files } = await supabase.storage
+      .from('images')
+      .list('', { limit: 5, sortBy: { column: 'created_at', order: 'desc' } });
+    report.bucket_images = files?.map(f => ({ name: f.name, size_kb: Math.round(f.metadata?.size / 1024) })) || [];
+  } catch (e) {
+    report.bucket_images = { error: e.message };
+  }
+
+  // 4. Leonardo — tokens restants
   try {
     const r = await fetch('https://cloud.leonardo.ai/api/rest/v1/me', {
       headers: { 'Authorization': `Bearer ${process.env.LEONARDO_API_KEY}` },
     });
     const data = await r.json();
     report.leonardo = {
-      ok: r.ok,
-      status: r.status,
-      user: data?.user_details?.[0]?.user?.username || null,
-      token_renewals: data?.user_details?.[0]?.subscriptionTokens || null,
+      ok:     r.ok,
+      tokens: data?.user_details?.[0]?.subscriptionTokens,
+      user:   data?.user_details?.[0]?.user?.username,
     };
   } catch (e) {
     report.leonardo = { ok: false, error: e.message };
   }
 
-  // 4. Test OpenAI API key
-  try {
-    const r = await fetch('https://api.openai.com/v1/models', {
-      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-    });
-    report.openai = { ok: r.ok, status: r.status };
-  } catch (e) {
-    report.openai = { ok: false, error: e.message };
-  }
-
-  return res.status(200).json(report);
+  return res.status(200).json(report, null, 2);
 }
