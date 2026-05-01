@@ -13,7 +13,7 @@ const ART_STYLE =
   'warm golden lighting, gentle shading, professional storybook quality, ' +
   'consistent character design throughout the book';
 
-async function generateWithLeonardo(apiKey, prompt) {
+async function generateWithLeonardo(apiKey, prompt, deadline) {
   const genRes = await fetch(`${LEONARDO_API}/generations`, {
     method: 'POST',
     headers: {
@@ -42,9 +42,15 @@ async function generateWithLeonardo(apiKey, prompt) {
     throw new Error('Leonardo: no generationId — ' + JSON.stringify(genData));
   }
 
-  // Poll toutes les 2s — max 25 fois = 50s (garde marge avant timeout Vercel 60s)
-  for (let i = 0; i < 25; i++) {
-    await new Promise(r => setTimeout(r, 2000));
+  // Poll toutes les 3s — s'arrête si on approche la deadline Vercel
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+
+    // Stop si on est à moins de 8s de la deadline
+    if (deadline && Date.now() > deadline - 8000) {
+      throw new Error('Leonardo: approaching deadline, aborting');
+    }
+
     const poll = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
@@ -57,7 +63,7 @@ async function generateWithLeonardo(apiKey, prompt) {
     }
     if (gen?.status === 'FAILED') throw new Error('Leonardo: generation failed');
   }
-  throw new Error('Leonardo: timeout after 50s');
+  throw new Error('Leonardo: timeout');
 }
 
 async function uploadToSupabase(supabase, imageUrl, filename) {
@@ -109,28 +115,48 @@ export default async function handler(req, res) {
     const characterDesc = charRes.choices[0].message.content.trim();
     console.log('[images] Character locked:', characterDesc);
 
-    // Toutes les images en parallèle
-    const results = await Promise.all(
-      story.pages.map(async (page) => {
-        const prompt = [
-          `${ART_STYLE}.`,
-          `MAIN CHARACTER (always exactly the same in every image): ${characterDesc}.`,
-          `SCENE: ${page.imagePrompt}.`,
-          `No text, no letters, no words anywhere in the image.`,
-        ].join(' ');
+    // Deadline = maintenant + 52s
+    const deadline = Date.now() + 52000;
 
-        try {
-          const rawUrl    = await generateWithLeonardo(leonardoKey, prompt);
-          const filename  = `p${page.pageNumber}-${Date.now()}.png`;
-          const publicUrl = await uploadToSupabase(supabase, rawUrl, filename);
-          console.log(`[images] Page ${page.pageNumber} ✓ ${publicUrl.slice(-30)}`);
-          return { pageNumber: page.pageNumber, imageUrl: publicUrl };
-        } catch (err) {
-          console.error(`[images] Page ${page.pageNumber} ✗:`, err.message);
-          return { pageNumber: page.pageNumber, imageUrl: null };
+    // Générer par batch de 5 pages en parallèle (évite de surcharger Leonardo)
+    const BATCH_SIZE = 5;
+    const results    = [];
+
+    for (let i = 0; i < story.pages.length; i += BATCH_SIZE) {
+      // Stop si on approche la deadline
+      if (Date.now() > deadline - 10000) {
+        console.warn('[images] Deadline approaching, stopping at page', i);
+        // Remplir le reste avec null
+        for (let j = i; j < story.pages.length; j++) {
+          results.push({ pageNumber: story.pages[j].pageNumber, imageUrl: null });
         }
-      })
-    );
+        break;
+      }
+
+      const batch = story.pages.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (page) => {
+          const prompt = [
+            `${ART_STYLE}.`,
+            `MAIN CHARACTER (always exactly the same in every image): ${characterDesc}.`,
+            `SCENE: ${page.imagePrompt}.`,
+            `No text, no letters, no words anywhere in the image.`,
+          ].join(' ');
+
+          try {
+            const rawUrl    = await generateWithLeonardo(leonardoKey, prompt, deadline);
+            const filename  = `p${page.pageNumber}-${Date.now()}.png`;
+            const publicUrl = await uploadToSupabase(supabase, rawUrl, filename);
+            console.log(`[images] Page ${page.pageNumber} ✓`);
+            return { pageNumber: page.pageNumber, imageUrl: publicUrl };
+          } catch (err) {
+            console.error(`[images] Page ${page.pageNumber} ✗:`, err.message);
+            return { pageNumber: page.pageNumber, imageUrl: null };
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
 
     const ok = results.filter(r => r.imageUrl).length;
     console.log(`[images] ${ok}/${story.pages.length} images generated`);
