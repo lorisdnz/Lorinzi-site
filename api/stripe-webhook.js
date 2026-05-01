@@ -5,7 +5,9 @@ import { buildBookPdf } from './generate-pdf.js';
 
 export const config = { api: { bodyParser: false } };
 
-const PAGE_COUNTS = { court: 30, classique: 40, long: 50 };
+// PDF pages = story_pages × 2 (illus + text) + 2 (cover + last)
+// court: 14×2+2=30, classique: 20×2+2=42, long: 25×2+2=52
+const PAGE_COUNTS = { court: 30, classique: 42, long: 52 };
 
 async function getRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -182,24 +184,26 @@ export default async function handler(req, res) {
     // 6. Send confirmation email
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const siteUrl = process.env.SITE_URL || 'https://lorinzi-site.vercel.app';
       const shipping = orderRow.shipping_details || {};
+
+      // Escape HTML special chars to prevent broken email layout
+      const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
       await resend.emails.send({
         from: 'Lorinizi <bonjour@lorinizi.com>',
         to: orderRow.customer_email,
-        subject: `✨ Votre livre pour ${orderRow.child_first_name} est en cours de création !`,
+        subject: `✨ Votre livre pour ${esc(orderRow.child_first_name)} est en cours de création !`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
             <h1 style="color: #C98C10; font-size: 28px;">Lorinizi ✨</h1>
             <h2 style="color: #1f2937;">Commande confirmée ! 🎉</h2>
             <p style="color: #4b5563; line-height: 1.6;">
               Merci pour votre commande ! Nous créons en ce moment le livre de
-              <strong>${orderRow.child_first_name}</strong> :
-              <em>"${orderRow.story?.title || ''}"</em>.
+              <strong>${esc(orderRow.child_first_name)}</strong> :
+              <em>&laquo; ${esc(orderRow.story?.title)} &raquo;</em>.
             </p>
             <div style="background: #FEF8E7; border-radius: 16px; padding: 20px; margin: 24px 0;">
-              <p style="margin: 4px 0; color: #4b5563;">📦 Livraison : ${shipping.address || ''}, ${shipping.postalCode || ''} ${shipping.city || ''}</p>
+              <p style="margin: 4px 0; color: #4b5563;">📦 Livraison : ${esc(shipping.address)}, ${esc(shipping.postalCode)} ${esc(shipping.city)}</p>
               <p style="margin: 4px 0; color: #4b5563;">⏱️ Délai estimé : 5–7 jours ouvrés</p>
               <p style="margin: 4px 0; color: #4b5563;">🔖 Commande : #${orderId.slice(0, 8).toUpperCase()}</p>
             </div>

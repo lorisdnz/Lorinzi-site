@@ -39,8 +39,8 @@ async function generateWithLeonardo(apiKey, prompt) {
   const generationId = genData.sdGenerationJob?.generationId;
   if (!generationId) throw new Error('Leonardo: no generationId — ' + JSON.stringify(genData));
 
-  // Poll toutes les 2s — max 30 fois = 60 secondes
-  for (let i = 0; i < 30; i++) {
+  // Poll toutes les 2s — max 25 fois = 50 secondes (garde 10s buffer avant timeout Vercel)
+  for (let i = 0; i < 25; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const poll = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` },

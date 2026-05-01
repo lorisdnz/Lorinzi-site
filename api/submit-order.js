@@ -14,6 +14,12 @@ export default async function handler(req, res) {
     if (!formData || !story) {
       return res.status(400).json({ error: 'Données manquantes' });
     }
+    if (!['court', 'classique', 'long'].includes(formData.bookFormat)) {
+      return res.status(400).json({ error: 'Format de livre invalide' });
+    }
+    if (!formData.childFirstName || !formData.customerEmail) {
+      return res.status(400).json({ error: 'Prénom ou email manquant' });
+    }
 
     const supabase = createClient(
       process.env.PUBLIC_SUPABASE_URL,
