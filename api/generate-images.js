@@ -2,15 +2,16 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const LEONARDO_API = 'https://cloud.leonardo.ai/api/rest/v1';
-// Leonardo Phoenix — meilleur modèle pour la cohérence visuelle
-const MODEL_ID = 'de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3';
 
-// Style artistique fixe — identique pour TOUS les livres
+// Leonardo Anime XL — ID vérifié fonctionnel
+const MODEL_ID = '6b645e3a-d64f-4341-a6d8-7a3690fbf042';
+
+// Style artistique verrouillé — identique pour tous les livres
 const ART_STYLE =
   'beautiful children\'s book illustration, warm rich colors, ' +
   'detailed digital painting, soft rounded shapes, expressive characters with big eyes, ' +
   'warm golden lighting, gentle shading, professional storybook quality, ' +
-  'Pixar-inspired style, consistent character throughout the book';
+  'consistent character design throughout the book';
 
 async function generateWithLeonardo(apiKey, prompt) {
   const genRes = await fetch(`${LEONARDO_API}/generations`, {
@@ -21,25 +22,27 @@ async function generateWithLeonardo(apiKey, prompt) {
     },
     body: JSON.stringify({
       prompt,
-      modelId:     MODEL_ID,
-      width:       1024,
-      height:      1024,
-      num_images:  1,
-      presetStyle: 'ILLUSTRATION',
-      alchemy:     true,
-      photoReal:   false,
-      // negative prompt — évite les incohérences visuelles
+      modelId:        MODEL_ID,
+      width:          1024,
+      height:         1024,
+      num_images:     1,
+      presetStyle:    'ILLUSTRATION',
+      alchemy:        true,
+      photoReal:      false,
       negative_prompt:
-        'text, words, letters, watermark, blurry, deformed, extra limbs, ' +
-        'multiple characters, different outfit, different hair, inconsistent character',
+        'text, words, letters, watermark, blurry, deformed, ugly, ' +
+        'multiple characters, different outfit, inconsistent character',
     }),
   });
 
   const genData      = await genRes.json();
   const generationId = genData.sdGenerationJob?.generationId;
-  if (!generationId) throw new Error('Leonardo: no generationId — ' + JSON.stringify(genData));
+  if (!generationId) {
+    console.error('[images] Leonardo error:', JSON.stringify(genData));
+    throw new Error('Leonardo: no generationId — ' + JSON.stringify(genData));
+  }
 
-  // Poll toutes les 2s — max 25 fois = 50 secondes (garde 10s buffer avant timeout Vercel)
+  // Poll toutes les 2s — max 25 fois = 50s (garde marge avant timeout Vercel 60s)
   for (let i = 0; i < 25; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const poll = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
@@ -54,16 +57,17 @@ async function generateWithLeonardo(apiKey, prompt) {
     }
     if (gen?.status === 'FAILED') throw new Error('Leonardo: generation failed');
   }
-  throw new Error('Leonardo: timeout');
+  throw new Error('Leonardo: timeout after 50s');
 }
 
 async function uploadToSupabase(supabase, imageUrl, filename) {
   const res    = await fetch(imageUrl);
   const buffer = await res.arrayBuffer();
+  // upsert:true pour éviter les conflits si même filename
   const { error } = await supabase.storage
     .from('images')
-    .upload(filename, Buffer.from(buffer), { contentType: 'image/png' });
-  if (error) throw new Error(error.message);
+    .upload(filename, Buffer.from(buffer), { contentType: 'image/png', upsert: true });
+  if (error) throw new Error('Supabase upload: ' + error.message);
   const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(filename);
   return publicUrl;
 }
@@ -85,8 +89,7 @@ export default async function handler(req, res) {
 
     const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
 
-    // GPT génère une description très précise et verrouillée du personnage
-    // Temperature 0 = déterministe, résultat identique à chaque appel pour le même enfant
+    // GPT génère une description précise et fixe du personnage (temperature=0 = déterministe)
     const charRes = await openai.chat.completions.create({
       model:       'gpt-4o',
       temperature: 0,
@@ -94,39 +97,33 @@ export default async function handler(req, res) {
       messages: [{
         role:    'user',
         content:
-          `Create a precise, locked character description for a children's book illustration series. ` +
+          `Create a precise, locked visual description for a children's book character. ` +
           `Character: ${age || 5}-year-old ${genderStr}. ` +
-          (childDescription ? `Physical traits provided: ${childDescription}. ` : '') +
-          `Specify EXACTLY: hair color and style, eye color, skin tone, ONE specific outfit ` +
-          `(color of shirt, pants/skirt, shoes) that will NEVER change across all illustrations. ` +
-          `Max 50 words. English only. Format: "[name] is a [age]-year-old [gender] with [hair], ` +
-          `[eyes], [skin]. Always wearing [exact outfit]."`,
+          (childDescription ? `Physical traits: ${childDescription}. ` : '') +
+          `Specify: hair color and style, eye color, skin tone, ONE specific outfit ` +
+          `(exact colors of shirt, pants/skirt, shoes) that NEVER changes. ` +
+          `Max 50 words. English only. Be very specific about colors.`,
       }],
     });
 
     const characterDesc = charRes.choices[0].message.content.trim();
     console.log('[images] Character locked:', characterDesc);
 
-    // Générer toutes les images en parallèle
+    // Toutes les images en parallèle
     const results = await Promise.all(
       story.pages.map(async (page) => {
-        // Prompt structuré en 3 blocs pour maximiser la cohérence Phoenix
         const prompt = [
-          // 1. Style artistique global
           `${ART_STYLE}.`,
-          // 2. Description du personnage — IDENTIQUE sur chaque page
-          `MAIN CHARACTER (always exactly the same): ${characterDesc}.`,
-          // 3. Scène spécifique à cette page
+          `MAIN CHARACTER (always exactly the same in every image): ${characterDesc}.`,
           `SCENE: ${page.imagePrompt}.`,
-          // 4. Règles absolues
-          `No text, no letters, no words anywhere in the image. Single main character only.`,
+          `No text, no letters, no words anywhere in the image.`,
         ].join(' ');
 
         try {
           const rawUrl    = await generateWithLeonardo(leonardoKey, prompt);
           const filename  = `p${page.pageNumber}-${Date.now()}.png`;
           const publicUrl = await uploadToSupabase(supabase, rawUrl, filename);
-          console.log(`[images] Page ${page.pageNumber} ✓`);
+          console.log(`[images] Page ${page.pageNumber} ✓ ${publicUrl.slice(-30)}`);
           return { pageNumber: page.pageNumber, imageUrl: publicUrl };
         } catch (err) {
           console.error(`[images] Page ${page.pageNumber} ✗:`, err.message);
@@ -136,7 +133,7 @@ export default async function handler(req, res) {
     );
 
     const ok = results.filter(r => r.imageUrl).length;
-    console.log(`[images] ${ok}/${story.pages.length} generated`);
+    console.log(`[images] ${ok}/${story.pages.length} images generated`);
 
     return res.status(200).json({
       ...story,

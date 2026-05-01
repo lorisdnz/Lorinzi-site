@@ -16,46 +16,39 @@ const DARK      = '#2D1B00';
 
 const MAX_STORY_PAGES = { court: 14, classique: 20, long: 25 };
 
-// ── Render text line-by-line at explicit Y coords ────────────────
-// The ONLY reliable way to prevent PDFKit from adding extra pages.
+// ── Render text safely — truncate to fit maxHeight, never overflow ──
+// Uses PDFKit's own heightOfString for accurate measurement,
+// then binary-search trims words until text fits.
 function renderTextSafe(doc, text, x, y, maxWidth, maxHeight, fontSize, lineGap) {
   if (!text) return;
+
+  // Set font BEFORE any measurement
   doc.font('Nunito').fontSize(fontSize).fillColor(DARK);
 
-  const LINE_H    = fontSize + lineGap;
-  const MAX_LINES = Math.floor(maxHeight / LINE_H);
-  const words     = text.trim().split(/\s+/);
+  const opts = { width: maxWidth, lineGap, align: 'left' };
 
-  const lines = [];
-  let current = '';
-  for (const word of words) {
-    const test = current ? current + ' ' + word : word;
-    if (doc.widthOfString(test) > maxWidth) {
-      if (current) {
-        lines.push(current);
-        if (lines.length >= MAX_LINES) break;
+  let finalText = text.trim();
+
+  // Check if full text fits
+  if (doc.heightOfString(finalText, opts) > maxHeight) {
+    // Binary search: find max number of words that fit
+    const words = finalText.split(/\s+/);
+    let lo = 1, hi = words.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      const candidate = words.slice(0, mid).join(' ') + '…';
+      if (doc.heightOfString(candidate, opts) <= maxHeight) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
       }
-      current = word;
-    } else {
-      current = test;
     }
-  }
-  if (current && lines.length < MAX_LINES) lines.push(current);
-
-  // Add ellipsis if text was cut
-  const rendered = lines.join(' ');
-  if (rendered.length < text.trim().length - 3 && lines.length > 0) {
-    let last = lines[lines.length - 1];
-    while (last.length > 0 && doc.widthOfString(last + '…') > maxWidth) {
-      last = last.slice(0, -1).trimEnd();
-    }
-    lines[lines.length - 1] = last + '…';
+    finalText = words.slice(0, lo).join(' ') + '…';
   }
 
-  // Render each line at explicit Y — PDFKit cannot auto-add pages this way
-  lines.forEach((ln, i) => {
-    doc.text(ln, x, y + i * LINE_H, { lineBreak: false });
-  });
+  // Render — text is guaranteed to fit within maxHeight
+  // Starting at explicit y means PDFKit cursor starts there, not at bottom of prev element
+  doc.text(finalText, x, y, opts);
 }
 
 // ── Download image from Supabase Storage (bypasses public URL auth issues) ──
