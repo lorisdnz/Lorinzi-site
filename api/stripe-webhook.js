@@ -153,7 +153,7 @@ export default async function handler(req, res) {
     console.log('[webhook] Final page count:', orderRow.story.pages.length);
     console.log('[webhook] Generating PDF for order:', orderId);
     await supabase.from('orders').update({ status: 'generating_pdf' }).eq('id', orderId);
-    const pdfBuffer = await buildBookPdf(orderRow);
+    const pdfBuffer = await buildBookPdf(orderRow, supabase);
     console.log('[webhook] PDF generated, size:', pdfBuffer.length);
 
     // 4. Upload PDF

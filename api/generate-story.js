@@ -40,7 +40,7 @@ ${data.includeEducationalMessage && data.educationalTheme ? `MESSAGE ÉDUCATIF :
 
 FORMAT :
 - Exactement ${pageCount} pages.
-- 80 à 120 mots par page, adaptés à ${data.age} ans.
+- 50 à 70 mots par page maximum, adaptés à ${data.age} ans. Phrases courtes et simples.
 - Retourne uniquement du JSON valide :
 
 {

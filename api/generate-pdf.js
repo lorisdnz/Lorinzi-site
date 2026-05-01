@@ -17,17 +17,15 @@ const DARK      = '#2D1B00';
 const MAX_STORY_PAGES = { court: 14, classique: 20, long: 25 };
 
 // ── Render text line-by-line at explicit Y coords ────────────────
-// This is the ONLY reliable way to prevent PDFKit from adding pages.
-// doc.text() with height+ellipsis can still trigger page breaks.
+// The ONLY reliable way to prevent PDFKit from adding extra pages.
 function renderTextSafe(doc, text, x, y, maxWidth, maxHeight, fontSize, lineGap) {
   if (!text) return;
   doc.font('Nunito').fontSize(fontSize).fillColor(DARK);
 
-  const LINE_H   = fontSize + lineGap;
+  const LINE_H    = fontSize + lineGap;
   const MAX_LINES = Math.floor(maxHeight / LINE_H);
-  const words    = text.trim().split(/\s+/);
+  const words     = text.trim().split(/\s+/);
 
-  // Build lines by measuring word widths
   const lines = [];
   let current = '';
   for (const word of words) {
@@ -44,24 +42,65 @@ function renderTextSafe(doc, text, x, y, maxWidth, maxHeight, fontSize, lineGap)
   }
   if (current && lines.length < MAX_LINES) lines.push(current);
 
-  // If text was cut, add ellipsis to last line
-  const fullText = text.trim();
+  // Add ellipsis if text was cut
   const rendered = lines.join(' ');
-  if (rendered.length < fullText.length - 3 && lines.length > 0) {
+  if (rendered.length < text.trim().length - 3 && lines.length > 0) {
     let last = lines[lines.length - 1];
-    while (last.length > 0 && doc.widthOfString(last + '...') > maxWidth) {
+    while (last.length > 0 && doc.widthOfString(last + '…') > maxWidth) {
       last = last.slice(0, -1).trimEnd();
     }
-    lines[lines.length - 1] = last + '...';
+    lines[lines.length - 1] = last + '…';
   }
 
-  // Render each line at explicit Y — PDFKit CANNOT auto-add pages
+  // Render each line at explicit Y — PDFKit cannot auto-add pages this way
   lines.forEach((ln, i) => {
     doc.text(ln, x, y + i * LINE_H, { lineBreak: false });
   });
 }
 
-export async function buildBookPdf(order) {
+// ── Download image from Supabase Storage (bypasses public URL auth issues) ──
+async function downloadImage(supabase, url) {
+  if (!url) return null;
+
+  // Method 1: Supabase admin download (most reliable — bypasses RLS/public settings)
+  if (supabase) {
+    try {
+      // Extract path from URL: /storage/v1/object/public/images/FILENAME
+      const match = url.match(/\/storage\/v1\/object\/(?:public\/)?images\/(.+?)(?:\?|$)/);
+      if (match && match[1]) {
+        const { data, error } = await supabase.storage.from('images').download(match[1]);
+        if (data && !error) {
+          const buf = await data.arrayBuffer();
+          console.log(`[pdf] Supabase download OK: ${match[1]}`);
+          return Buffer.from(buf);
+        }
+        if (error) console.warn(`[pdf] Supabase download error: ${error.message}`);
+      }
+    } catch (e) {
+      console.warn(`[pdf] Supabase download failed: ${e.message}`);
+    }
+  }
+
+  // Method 2: HTTP fetch fallback (works if bucket is truly public)
+  try {
+    const controller = new AbortController();
+    const timeout    = setTimeout(() => controller.abort(), 20000);
+    const r          = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!r.ok) {
+      console.warn(`[pdf] HTTP fetch failed for image: ${r.status} ${url}`);
+      return null;
+    }
+    const buf = await r.arrayBuffer();
+    console.log(`[pdf] HTTP fetch OK: ${url.slice(-40)}`);
+    return Buffer.from(buf);
+  } catch (e) {
+    console.warn(`[pdf] HTTP fetch error: ${e.message}`);
+    return null;
+  }
+}
+
+export async function buildBookPdf(order, supabase = null) {
   const story      = order.story;
   const childName  = order.child_first_name || 'Toi';
   const bookFormat = order.form_data?.bookFormat || 'classique';
@@ -83,31 +122,23 @@ export async function buildBookPdf(order) {
   doc.registerFont('Nunito',      FONT_REGULAR);
   doc.registerFont('Nunito-Bold', FONT_BOLD);
 
-  async function fetchImage(url) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout per image
-      const r   = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-      const buf = await r.arrayBuffer();
-      return Buffer.from(buf);
-    } catch { return null; }
-  }
+  // Text zone — 19px fits ~96 words (GPT generates 60-90 words/page)
+  const PAD_X    = 48;
+  const TEXT_TOP = 72;
+  const TEXT_W   = PAGE_SIZE - PAD_X * 2;   // 471px
+  const TEXT_H   = PAGE_SIZE - TEXT_TOP - 55; // 440px
+  const FONT_SZ  = 19;
+  const LINE_GAP = 14;
+  // → LINE_H = 33px, MAX_LINES = floor(440/33) = 13 lines
+  // → ~8 words/line × 13 = ~104 words max ✓
 
-  // Text zone constants
-  const PAD_X    = 50;
-  const TEXT_TOP = 78;
-  const TEXT_W   = PAGE_SIZE - PAD_X * 2;   // 467px
-  const TEXT_H   = PAGE_SIZE - TEXT_TOP - 60; // 429px
-  const FONT_SZ  = 26;
-  const LINE_GAP = 20;
-
-  // ── PRE-FETCH ALL IMAGES IN PARALLEL (avoids sequential timeout) ──
-  console.log(`[pdf] Pre-fetching ${storyPages.length} images in parallel...`);
+  // ── PRE-FETCH ALL IMAGES IN PARALLEL via Supabase admin ──
+  console.log(`[pdf] Downloading ${storyPages.length} images in parallel...`);
   const imageBuffers = await Promise.all(
-    storyPages.map(page => page.imageUrl ? fetchImage(page.imageUrl) : Promise.resolve(null))
+    storyPages.map(page => downloadImage(supabase, page.imageUrl))
   );
-  console.log(`[pdf] Images fetched: ${imageBuffers.filter(Boolean).length}/${storyPages.length}`);
+  const loaded = imageBuffers.filter(Boolean).length;
+  console.log(`[pdf] Images loaded: ${loaded}/${storyPages.length}`);
 
   // ── COVER PAGE ──────────────────────────────────────────────
   doc.addPage();
@@ -123,19 +154,15 @@ export async function buildBookPdf(order) {
 
   const TZ = COVER_H;
   doc.rect(0, TZ, PAGE_SIZE, PAGE_SIZE - TZ).fill(CREAM);
-
-  // Frame
   doc.rect(0, TZ,            PAGE_SIZE, 4).fill(GOLDEN);
   doc.rect(0, PAGE_SIZE - 4, PAGE_SIZE, 4).fill(GOLDEN);
   doc.rect(0, TZ,            4, PAGE_SIZE - TZ).fill(GOLDEN);
   doc.rect(PAGE_SIZE - 4, TZ, 4, PAGE_SIZE - TZ).fill(GOLDEN);
 
-  // Decorative dots
   [-50, -25, 0, 25, 50].forEach((off, i) => {
     doc.circle(PAGE_SIZE / 2 + off, TZ + 20, i === 2 ? 5 : 3).fill(GOLDEN);
   });
 
-  // Title
   const title = story?.title || `L'histoire de ${childName}`;
   doc.font('Nunito-Bold').fontSize(30).fillColor(DARK)
     .text(title.slice(0, 55), 20, TZ + 35, {
@@ -164,13 +191,13 @@ export async function buildBookPdf(order) {
     if (imgBuf) {
       doc.image(imgBuf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
     } else {
-      // Fallback: styled cream page (not blank white)
-      doc.rect(0, 0,            PAGE_SIZE, 8).fill(GOLDEN);
+      // Fallback: styled page (not blank)
+      doc.rect(0, 0,             PAGE_SIZE, 8).fill(GOLDEN);
       doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
-      doc.rect(0, 0,            8, PAGE_SIZE).fill(GOLDEN);
+      doc.rect(0, 0,             8, PAGE_SIZE).fill(GOLDEN);
       doc.rect(PAGE_SIZE - 8, 0, 8, PAGE_SIZE).fill(GOLDEN);
-      doc.font('Nunito-Bold').fontSize(48).fillColor(GOLDEN)
-        .text('*', 0, PAGE_SIZE / 2 - 30, { width: PAGE_SIZE, align: 'center', lineBreak: false });
+      doc.font('Nunito-Bold').fontSize(36).fillColor(GOLDEN)
+        .text('✨', 0, PAGE_SIZE / 2 - 25, { width: PAGE_SIZE, align: 'center', lineBreak: false });
     }
 
     // ─── Text page ───
@@ -178,35 +205,30 @@ export async function buildBookPdf(order) {
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
-    // Golden bars top & bottom
     doc.rect(0, 0,              PAGE_SIZE, 12).fill(GOLDEN);
     doc.rect(0, PAGE_SIZE - 12, PAGE_SIZE, 12).fill(GOLDEN);
 
-    // Inner frame
     doc.rect(22, 22,               PAGE_SIZE - 44, 1.5).fill(GOLDEN);
     doc.rect(22, PAGE_SIZE - 23.5, PAGE_SIZE - 44, 1.5).fill(GOLDEN);
     doc.rect(22, 22,               1.5, PAGE_SIZE - 44).fill(GOLDEN);
     doc.rect(PAGE_SIZE - 23.5, 22, 1.5, PAGE_SIZE - 44).fill(GOLDEN);
 
-    // Corner dots
     [22, PAGE_SIZE - 22].forEach(cx => {
       [22, PAGE_SIZE - 22].forEach(cy => {
         doc.circle(cx, cy, 4).fill(GOLDEN);
       });
     });
 
-    // Decorative dots top
     [-50, -25, 0, 25, 50].forEach((off, i) => {
       doc.circle(PAGE_SIZE / 2 + off, 44, i === 2 ? 6 : 3.5).fill(GOLDEN);
     });
 
-    // Separator
     doc.rect(60, 57, PAGE_SIZE - 120, 2).fill(GOLDEN);
 
-    // ── TEXT — manual line-by-line (guaranteed no extra pages) ──
+    // TEXT — line-by-line rendering (no auto page breaks possible)
     renderTextSafe(doc, page.text || '', PAD_X, TEXT_TOP, TEXT_W, TEXT_H, FONT_SZ, LINE_GAP);
 
-    // Page number inside bottom golden bar
+    // Page number in golden bar
     doc.font('Nunito-Bold').fontSize(11).fillColor(CREAM)
       .text(`${pdfPageNum}`, 0, PAGE_SIZE - 9, {
         width: PAGE_SIZE, align: 'center', lineBreak: false,
@@ -219,7 +241,6 @@ export async function buildBookPdf(order) {
   doc.rect(0, 0,             PAGE_SIZE, 8).fill(GOLDEN);
   doc.rect(0, PAGE_SIZE - 8, PAGE_SIZE, 8).fill(GOLDEN);
 
-  // Decorative ring of dots
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
     doc.circle(
@@ -237,12 +258,10 @@ export async function buildBookPdf(order) {
       width: PAGE_SIZE, align: 'center', lineBreak: false,
     });
 
-  // Dots row
   for (let i = 0; i < 7; i++) {
     doc.circle(PAGE_SIZE / 2 - 60 + i * 20, PAGE_SIZE * 0.47, i === 3 ? 5 : 3).fill(GOLDEN);
   }
 
-  // Logo — big and centered
   try {
     const logoBuf  = readFileSync(LOGO_PATH);
     const logoSize = 240;
@@ -259,7 +278,7 @@ export async function buildBookPdf(order) {
   await pdfEnd;
 
   const buf = Buffer.concat(buffers);
-  console.log(`[pdf] Done — ${buf.length} bytes, ${storyPages.length * 2 + 2} pages expected`);
+  console.log(`[pdf] Done — ${(buf.length / 1024 / 1024).toFixed(1)}MB, ${storyPages.length * 2 + 2} pages`);
   return buf;
 }
 
@@ -273,7 +292,7 @@ export default async function handler(req, res) {
     );
     const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
     if (!order) return res.status(404).json({ error: 'Commande introuvable' });
-    const pdfBuffer = await buildBookPdf(order);
+    const pdfBuffer = await buildBookPdf(order, supabase);
     const filename  = `books/${orderId}.pdf`;
     const { error } = await supabase.storage.from('pdfs')
       .upload(filename, pdfBuffer, { contentType: 'application/pdf', upsert: true });
