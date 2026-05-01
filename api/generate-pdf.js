@@ -85,7 +85,10 @@ export async function buildBookPdf(order) {
 
   async function fetchImage(url) {
     try {
-      const r   = await fetch(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout per image
+      const r   = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
       const buf = await r.arrayBuffer();
       return Buffer.from(buf);
     } catch { return null; }
@@ -99,15 +102,21 @@ export async function buildBookPdf(order) {
   const FONT_SZ  = 26;
   const LINE_GAP = 20;
 
+  // ── PRE-FETCH ALL IMAGES IN PARALLEL (avoids sequential timeout) ──
+  console.log(`[pdf] Pre-fetching ${storyPages.length} images in parallel...`);
+  const imageBuffers = await Promise.all(
+    storyPages.map(page => page.imageUrl ? fetchImage(page.imageUrl) : Promise.resolve(null))
+  );
+  console.log(`[pdf] Images fetched: ${imageBuffers.filter(Boolean).length}/${storyPages.length}`);
+
   // ── COVER PAGE ──────────────────────────────────────────────
   doc.addPage();
   doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
 
   const COVER_H  = Math.floor(PAGE_SIZE * 0.70);
-  const coverImg = storyPages[0]?.imageUrl;
-  if (coverImg) {
-    const buf = await fetchImage(coverImg);
-    if (buf) doc.image(buf, 0, 0, { width: PAGE_SIZE, height: COVER_H, cover: [PAGE_SIZE, COVER_H] });
+  const coverBuf = imageBuffers[0];
+  if (coverBuf) {
+    doc.image(coverBuf, 0, 0, { width: PAGE_SIZE, height: COVER_H, cover: [PAGE_SIZE, COVER_H] });
   }
 
   doc.rect(0, COVER_H - 5, PAGE_SIZE, 5).fill(GOLDEN);
@@ -144,13 +153,14 @@ export async function buildBookPdf(order) {
   // ── STORY PAGES ──────────────────────────────────────────────
   let pdfPageNum = 1;
 
-  for (const page of storyPages) {
+  for (let pi = 0; pi < storyPages.length; pi++) {
+    const page   = storyPages[pi];
+    const imgBuf = imageBuffers[pi];
 
     // ─── Illustration page ───
     pdfPageNum++;
     doc.addPage();
     doc.rect(0, 0, PAGE_SIZE, PAGE_SIZE).fill(CREAM);
-    const imgBuf = page.imageUrl ? await fetchImage(page.imageUrl) : null;
     if (imgBuf) {
       doc.image(imgBuf, 0, 0, { width: PAGE_SIZE, height: PAGE_SIZE, cover: [PAGE_SIZE, PAGE_SIZE] });
     } else {
