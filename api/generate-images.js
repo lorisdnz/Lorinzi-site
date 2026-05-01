@@ -2,8 +2,8 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const LEONARDO_API = 'https://cloud.leonardo.ai/api/rest/v1';
-// Leonardo Anime XL — modèle confirmé fonctionnel
-const MODEL_ID     = '6b645e3a-d64f-4341-a6d8-7a3690fbf042';
+// Leonardo Phoenix — meilleure cohérence visuelle
+const MODEL_ID     = 'de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3';
 
 async function generateWithLeonardo(apiKey, prompt) {
   const genRes = await fetch(`${LEONARDO_API}/generations`, {
@@ -21,6 +21,7 @@ async function generateWithLeonardo(apiKey, prompt) {
       presetStyle: 'ILLUSTRATION',
       alchemy:     true,
       photoReal:   false,
+      styleUUID:   'e71a1c2f-4f80-4800-934f-2c68979d1cc6',
     }),
   });
 
