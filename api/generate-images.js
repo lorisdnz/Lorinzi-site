@@ -2,8 +2,15 @@ import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const LEONARDO_API = 'https://cloud.leonardo.ai/api/rest/v1';
-// Leonardo Phoenix — meilleure cohérence visuelle
-const MODEL_ID     = 'de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3';
+// Leonardo Phoenix — meilleur modèle pour la cohérence visuelle
+const MODEL_ID = 'de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3';
+
+// Style artistique fixe — identique pour TOUS les livres
+const ART_STYLE =
+  'beautiful children\'s book illustration, warm rich colors, ' +
+  'detailed digital painting, soft rounded shapes, expressive characters with big eyes, ' +
+  'warm golden lighting, gentle shading, professional storybook quality, ' +
+  'Pixar-inspired style, consistent character throughout the book';
 
 async function generateWithLeonardo(apiKey, prompt) {
   const genRes = await fetch(`${LEONARDO_API}/generations`, {
@@ -21,7 +28,10 @@ async function generateWithLeonardo(apiKey, prompt) {
       presetStyle: 'ILLUSTRATION',
       alchemy:     true,
       photoReal:   false,
-      styleUUID:   'e71a1c2f-4f80-4800-934f-2c68979d1cc6',
+      // negative prompt — évite les incohérences visuelles
+      negative_prompt:
+        'text, words, letters, watermark, blurry, deformed, extra limbs, ' +
+        'multiple characters, different outfit, different hair, inconsistent character',
     }),
   });
 
@@ -29,14 +39,14 @@ async function generateWithLeonardo(apiKey, prompt) {
   const generationId = genData.sdGenerationJob?.generationId;
   if (!generationId) throw new Error('Leonardo: no generationId — ' + JSON.stringify(genData));
 
-  // Poll toutes les 2s — max 25 fois = 50 secondes
-  for (let i = 0; i < 25; i++) {
+  // Poll toutes les 2s — max 30 fois = 60 secondes
+  for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 2000));
-    const poll    = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
+    const poll = await fetch(`${LEONARDO_API}/generations/${generationId}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
     });
-    const data    = await poll.json();
-    const gen     = data.generations_by_pk;
+    const data = await poll.json();
+    const gen  = data.generations_by_pk;
     if (gen?.status === 'COMPLETE') {
       const url = gen.generated_images?.[0]?.url;
       if (!url) throw new Error('Leonardo: no image URL');
@@ -75,41 +85,42 @@ export default async function handler(req, res) {
 
     const genderStr = gender === 'fille' ? 'girl' : gender === 'garcon' ? 'boy' : 'child';
 
-    // GPT génère une description UNIQUE et très précise du personnage
+    // GPT génère une description très précise et verrouillée du personnage
+    // Temperature 0 = déterministe, résultat identique à chaque appel pour le même enfant
     const charRes = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      temperature: 0.1,
-      max_tokens: 60,
+      model:       'gpt-4o',
+      temperature: 0,
+      max_tokens:  80,
       messages: [{
-        role: 'user',
+        role:    'user',
         content:
-          `Write a SHORT precise character description for a children's book illustration. ` +
+          `Create a precise, locked character description for a children's book illustration series. ` +
           `Character: ${age || 5}-year-old ${genderStr}. ` +
-          (childDescription ? `Traits: ${childDescription}. ` : '') +
-          `Include: hair color+style, eye color, skin tone, specific outfit (shirt, pants, shoes). ` +
-          `Max 35 words. English only. Be very specific about colors.`,
+          (childDescription ? `Physical traits provided: ${childDescription}. ` : '') +
+          `Specify EXACTLY: hair color and style, eye color, skin tone, ONE specific outfit ` +
+          `(color of shirt, pants/skirt, shoes) that will NEVER change across all illustrations. ` +
+          `Max 50 words. English only. Format: "[name] is a [age]-year-old [gender] with [hair], ` +
+          `[eyes], [skin]. Always wearing [exact outfit]."`,
       }],
     });
 
     const characterDesc = charRes.choices[0].message.content.trim();
-    console.log('[images] Character:', characterDesc);
+    console.log('[images] Character locked:', characterDesc);
 
-    // Style identique verrouillé pour TOUTES les images
-    const STYLE =
-      'high quality children\'s book illustration, rich vibrant saturated colors, ' +
-      'detailed digital painting, expressive cartoon characters with big round eyes, ' +
-      'warm cheerful lighting, soft shading and depth, professional storybook quality, ' +
-      'colorful and joyful atmosphere, consistent character design throughout';
-
-    // Toutes les images en PARALLÈLE — fiable et rapide
+    // Générer toutes les images en parallèle
     const results = await Promise.all(
       story.pages.map(async (page) => {
-        const prompt =
-          `${STYLE}. ` +
-          `Main character always identical: ${characterDesc}. ` +
-          `Same face, same hair, same outfit as all other pages. ` +
-          `Scene: ${page.imagePrompt}. ` +
-          `No text, no letters, no words anywhere in the image.`;
+        // Prompt structuré en 3 blocs pour maximiser la cohérence Phoenix
+        const prompt = [
+          // 1. Style artistique global
+          `${ART_STYLE}.`,
+          // 2. Description du personnage — IDENTIQUE sur chaque page
+          `MAIN CHARACTER (always exactly the same): ${characterDesc}.`,
+          // 3. Scène spécifique à cette page
+          `SCENE: ${page.imagePrompt}.`,
+          // 4. Règles absolues
+          `No text, no letters, no words anywhere in the image. Single main character only.`,
+        ].join(' ');
 
         try {
           const rawUrl    = await generateWithLeonardo(leonardoKey, prompt);
