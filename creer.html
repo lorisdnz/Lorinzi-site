@@ -811,10 +811,10 @@
         if (!storyRes.ok) throw new Error('Erreur génération histoire');
         const story = await storyRes.json();
 
-        // 2. Generate images
-        msg.textContent = '🎨 Génération des illustrations...';
-        bar.style.width = '50%';
-        const imgRes = await fetch(API_BASE + '/api/generate-images', {
+        // 2. Generate images — Phase 1: soumettre toutes les générations Leonardo
+        msg.textContent = '🎨 Envoi des illustrations à créer...';
+        bar.style.width = '45%';
+        const submitRes = await fetch(API_BASE + '/api/generate-images', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
             story,
             age: data.age,
@@ -822,8 +822,57 @@
             childDescription: [data.skinColor, data.eyeColor, data.hairColor].filter(Boolean).join(', ')
           })
         });
-        if (!imgRes.ok) throw new Error('Erreur génération images');
-        const storyWithImages = await imgRes.json();
+        if (!submitRes.ok) throw new Error('Erreur soumission images');
+        const submitData = await submitRes.json();
+
+        // Phase 2: poller depuis le navigateur jusqu'à ce que toutes les images soient prêtes
+        // Le navigateur n'a pas de timeout → on peut attendre aussi longtemps que nécessaire
+        let generationIds  = submitData.generationIds;
+        let storyWithImages = { ...story, pages: story.pages.map(p => ({ ...p, imageUrl: null })) };
+        const MAX_POLLS    = 30; // 30 × 5s = 2min30 max
+        let polls          = 0;
+
+        while (polls < MAX_POLLS) {
+          polls++;
+          // Attendre 5s entre chaque poll
+          await new Promise(r => setTimeout(r, 5000));
+
+          const pct = 45 + Math.round((polls / MAX_POLLS) * 35);
+          bar.style.width = pct + '%';
+          msg.textContent = `🎨 Illustrations en cours... (${polls * 5}s)`;
+
+          const pollRes = await fetch(API_BASE + '/api/generate-images', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ story, generationIds })
+          });
+          if (!pollRes.ok) continue;
+          const pollData = await pollRes.json();
+
+          // Mettre à jour les imageUrls déjà disponibles
+          if (pollData.results) {
+            pollData.results.forEach(r => {
+              if (r.imageUrl) {
+                const page = storyWithImages.pages.find(p => p.pageNumber === r.pageNumber);
+                if (page) page.imageUrl = r.imageUrl;
+                // Mettre à jour generationId restant (garder seulement les pending)
+              }
+            });
+            // Mettre à jour generationIds pour ne garder que ceux pas encore finis
+            generationIds = generationIds.map(g => {
+              const result = pollData.results.find(r => r.pageNumber === g.pageNumber);
+              return (result?.status === 'DONE') ? { ...g, generationId: null } : g;
+            }).filter(g => g.generationId);
+          }
+
+          const done = storyWithImages.pages.filter(p => p.imageUrl).length;
+          msg.textContent = `🎨 Illustrations : ${done}/${story.pages.length} créées...`;
+
+          // Toutes les images sont prêtes ou plus rien à attendre
+          if (generationIds.length === 0 || pollData.pending === 0) break;
+        }
+
+        const totalDone = storyWithImages.pages.filter(p => p.imageUrl).length;
+        console.log(`[creer] Images finales: ${totalDone}/${story.pages.length}`);
 
         // 3. Submit order + Stripe
         msg.textContent = '💳 Préparation du paiement...';
